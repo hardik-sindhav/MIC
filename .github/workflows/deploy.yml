@@ -55,15 +55,22 @@ jobs:
           exit 0
         fi
         mkdir -p ~/.ssh
-        echo "$VPS_PRIVATE_KEY" > ~/.ssh/id_ed25519
+        printf "%s\n" "$VPS_PRIVATE_KEY" > ~/.ssh/id_ed25519
         chmod 600 ~/.ssh/id_ed25519
+        sed -i 's/\r$//' ~/.ssh/id_ed25519
         ssh-keyscan -H $VPS_HOST >> ~/.ssh/known_hosts 2>/dev/null || true
+        echo "✅ SSH key setup complete"
 
-    - name: Fix SSH key format (Frontend)
+    - name: Debug SSH Key (Frontend)
       run: |
         if [ -f ~/.ssh/id_ed25519 ]; then
-          sed -i 's/\r$//' ~/.ssh/id_ed25519
-          echo "✅ SSH key format fixed"
+          echo "📋 SSH directory listing:"
+          ls -l ~/.ssh
+          echo ""
+          echo "📄 First 2 lines of private key:"
+          head -n 2 ~/.ssh/id_ed25519
+        else
+          echo "❌ SSH key file not found"
         fi
 
     - name: Deploy frontend to VPS
@@ -142,15 +149,22 @@ jobs:
           exit 0
         fi
         mkdir -p ~/.ssh
-        echo "$VPS_PRIVATE_KEY" > ~/.ssh/id_ed25519
+        printf "%s\n" "$VPS_PRIVATE_KEY" > ~/.ssh/id_ed25519
         chmod 600 ~/.ssh/id_ed25519
+        sed -i 's/\r$//' ~/.ssh/id_ed25519
         ssh-keyscan -H $VPS_HOST >> ~/.ssh/known_hosts 2>/dev/null || true
+        echo "✅ SSH key setup complete"
 
-    - name: Fix SSH key format (Backend)
+    - name: Debug SSH Key (Backend)
       run: |
         if [ -f ~/.ssh/id_ed25519 ]; then
-          sed -i 's/\r$//' ~/.ssh/id_ed25519
-          echo "✅ SSH key format fixed"
+          echo "📋 SSH directory listing:"
+          ls -l ~/.ssh
+          echo ""
+          echo "📄 First 2 lines of private key:"
+          head -n 2 ~/.ssh/id_ed25519
+        else
+          echo "❌ SSH key file not found"
         fi
 
     - name: Deploy to VPS
