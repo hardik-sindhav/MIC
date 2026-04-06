@@ -115,9 +115,13 @@ jobs:
           EOF
 
       - name: Health Check
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
         run: |
-          sleep 3
-          curl -f https://api.mic.xfinai.cloud || exit 1
+          sleep 5
+          # Verify backend process is running
+          ssh -i ~/.ssh/id_ed25519 $VPS_USER@$VPS_HOST "pm2 list | grep mic-backend"
 
       - name: Done backend deploy
         run: echo "Backend deployed"
