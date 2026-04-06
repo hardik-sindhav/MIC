@@ -85,13 +85,23 @@ jobs:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_APP_PATH: ${{ secrets.VPS_APP_PATH }}
+          GITHUB_REPO: ${{ github.server_url }}/${{ github.repository }}.git
         run: |
-          ssh -i ~/.ssh/id_ed25519 $VPS_USER@$VPS_HOST << 'EOF'
+          ssh -i ~/.ssh/id_ed25519 $VPS_USER@$VPS_HOST << EOF
             set -e
 
             echo "Backend Deploy Start"
 
-            cd $VPS_APP_PATH
+            # Ensure directory exists
+            mkdir -p "$VPS_APP_PATH"
+
+            # Check if it's already a git repository
+            if [ ! -d "$VPS_APP_PATH/.git" ]; then
+              echo "Cloning repository..."
+              git clone "$GITHUB_REPO" "$VPS_APP_PATH"
+            fi
+
+            cd "$VPS_APP_PATH"
 
             git fetch origin
             git reset --hard origin/main
