@@ -4,6 +4,10 @@ on:
   push:
     branches: [ main ]
 
+permissions:
+  contents: write
+  pages: write
+
 jobs:
   build-and-deploy-frontend:
     runs-on: ubuntu-latest
@@ -97,22 +101,28 @@ jobs:
     if: github.event_name == 'push'
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v5
       with:
         node-version: '20.x'
         cache: 'npm'
         cache-dependency-path: backend/package-lock.json
     
-    - name: Install backend dependencies
+    - name: Install backend dependencies (Debug)
       working-directory: backend
-      run: npm ci
+      run: |
+        echo "📦 Installing dependencies..."
+        npm ci || exit 1
+        echo "✅ Dependencies installed"
     
     - name: Verify backend build
       working-directory: backend
-      run: node --check src/server.js
+      run: |
+        echo "🔍 Checking syntax..."
+        node --check src/server.js || exit 1
+        echo "✅ Backend syntax valid"
     
     - name: Deploy to VPS
       env:
@@ -198,32 +208,37 @@ jobs:
         echo "✅ Deployment verification complete"
     
     - name: Deployment summary
+      if: success()
       run: |
-        echo "🚀 MIC Deployment Summary:" >> $GITHUB_STEP_SUMMARY
+        echo "✅ MIC Deployment Summary:" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**✅ Frontend Deployment:**" >> $GITHUB_STEP_SUMMARY
+        echo "**Frontend Deployment:**" >> $GITHUB_STEP_SUMMARY
         echo "- Admin Panel: https://admin.mic.xfinai.cloud" >> $GITHUB_STEP_SUMMARY
-        echo "- Fallback (GitHub Pages): https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Fallback: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Backend Deployment:**" >> $GITHUB_STEP_SUMMARY
         if [ -z "${{ secrets.VPS_HOST }}" ]; then
           echo "- Status: ⏳ Not configured yet" >> $GITHUB_STEP_SUMMARY
-          echo "- Setup guide: See [CUSTOM-DOMAINS-SETUP.md](.github/CUSTOM-DOMAINS-SETUP.md)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Setup VPS Deployment](.github/CUSTOM-DOMAINS-SETUP.md)" >> $GITHUB_STEP_SUMMARY
         else
-          echo "- API Endpoint: https://api.mic.xfinai.cloud" >> $GITHUB_STEP_SUMMARY
-          echo "- Server: ${{ secrets.VPS_HOST }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Status: ✅ Deployed" >> $GITHUB_STEP_SUMMARY
+          echo "- API: https://api.mic.xfinai.cloud" >> $GITHUB_STEP_SUMMARY
+          echo "- Status: ✅ Deployed to VPS" >> $GITHUB_STEP_SUMMARY
         fi
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Commit Details:**" >> $GITHUB_STEP_SUMMARY
-        echo "- Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-        echo "- Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-        echo "- Author: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Deployment triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+
+    - name: Deployment failed
+      if: failure()
+      run: |
+        echo "❌ Deployment Failed!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Check the logs above for details." >> $GITHUB_STEP_SUMMARY
+        exit 1
 
   notify:
     runs-on: ubuntu-latest
     needs: [ build-and-deploy-frontend, build-backend ]
-    if: always()
+    if: success()
 
     steps:
     - name: Create deployment notification
