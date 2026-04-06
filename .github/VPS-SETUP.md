@@ -2,15 +2,26 @@
 
 ## Overview
 
-This guide walks you through deploying your backend to a VPS using GitHub Actions via SSH.
+This guide walks you through deploying your backend and admin panel to a VPS using GitHub Actions via SSH.
 
 **What happens on each merge to main:**
 1. GitHub Actions tests and builds your backend
-2. SSH connects to your VPS
-3. Pulls latest code using Git
-4. Reinstalls dependencies
-5. Restarts the Node.js service
-6. Verifies deployment success
+2. GitHub Actions builds and uploads the admin panel (frontend)
+3. SSH connects to your VPS
+4. Pulls latest code using Git
+5. Reinstalls dependencies
+6. Restarts the Node.js backend service
+7. Updates frontend files
+8. Verifies deployment success
+
+**Architecture:**
+```
+VPS with Nginx
+├── Frontend (Static files on port 80/443)
+│   └── Admin Panel (React + Vite build)
+└── Backend (Node.js on port 5000)
+    └── API endpoints
+```
 
 ---
 
@@ -140,6 +151,80 @@ git config user.name "Deployment Bot"
 git config --global credential.helper store
 ```
 
+### 1.6 Setup Nginx for Frontend
+
+Install and configure Nginx to serve the admin panel:
+
+```bash
+# Install Nginx
+sudo apt-get install -y nginx
+
+# Create frontend directory
+sudo mkdir -p /var/www/mic-frontend
+sudo chown $USER:$USER /var/www/mic-frontend
+
+# Create Nginx configuration
+sudo tee /etc/nginx/sites-available/mic-admin > /dev/null << 'EOF'
+server {
+    listen 80;
+    listen [::]:80;
+    server_name _;
+
+    # Admin Panel (Frontend)
+    location / {
+        root /var/www/mic-frontend;
+        try_files $uri $uri/ /index.html;
+        expires 1h;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # Assets with long cache
+    location ~* \.(js|css|woff|woff2|ttf|eot|svg)$ {
+        root /var/www/mic-frontend;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # API Proxy to Node.js backend
+    location /api/ {
+        proxy_pass http://localhost:5000/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    # Gzip compression
+    gzip on;
+    gzip_types text/plain text/css text/xml text/javascript 
+               application/x-javascript application/xml+rss 
+               application/javascript application/json;
+}
+EOF
+
+# Enable site
+sudo ln -sf /etc/nginx/sites-available/mic-admin /etc/nginx/sites-enabled/mic-admin
+sudo rm -f /etc/nginx/sites-enabled/default
+
+# Test configuration
+sudo nginx -t
+
+# Restart Nginx
+sudo systemctl enable nginx
+sudo systemctl restart nginx
+
+# Verify it's running
+sudo systemctl status nginx
+```
+
+**Result:** 
+- Frontend: `http://your-vps-ip/`
+- Backend API: `http://your-vps-ip/api/`
+
 ---
 
 ## 🔐 Step 2: Generate SSH Keys (GitHub Actions)
@@ -208,6 +293,9 @@ whoami
 # 3. Get application path
 pwd
 # usually /var/www/mic-backend
+
+# 4. Get frontend path
+echo /var/www/mic-frontend
 ```
 
 ### 3.2 Add Secrets to GitHub
@@ -221,6 +309,7 @@ pwd
 | `VPS_HOST` | Your VPS IP or domain (e.g., `123.45.67.89`) |
 | `VPS_USER` | SSH user (usually `root`) |
 | `VPS_APP_PATH` | Application path (e.g., `/var/www/mic-backend`) |
+| `VPS_FRONTEND_PATH` | Frontend path (e.g., `/var/www/mic-frontend`) |
 
 **Example for VPS_PRIVATE_KEY:**
 ```bash

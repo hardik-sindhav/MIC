@@ -106,6 +106,7 @@ sudo systemctl status mic-backend
 | `VPS_HOST` | Your VPS IP or domain | `123.45.67.89` or `vps.example.com` |
 | `VPS_USER` | SSH username | `root` |
 | `VPS_APP_PATH` | Backend app path | `/var/www/mic-backend` |
+| `VPS_FRONTEND_PATH` | Frontend app path | `/var/www/mic-frontend` |
 
 ### Get Secret Values
 
@@ -255,10 +256,11 @@ ssh root@YOUR_VPS_IP "cat /var/www/mic-backend/backend/.env"
 
 | File | Purpose |
 |------|---------|
-| [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) | Deployment workflow |
-| [`.github/VPS-SETUP.md`](.github/VPS-SETUP.md) | Detailed VPS guide |
+| [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) | Deployment workflow (frontend + backend) |
+| [`.github/VPS-SETUP.md`](.github/VPS-SETUP.md) | Detailed VPS setup guide |
 | [`setup-vps.sh`](setup-vps.sh) | Automated VPS setup script |
-| [`backend/.env.example`](backend/.env.example) | Environment variables template |
+| [`backend/.env.example`](backend/.env.example) | Backend environment variables template |
+| [`admin_panel/.env.example`](admin_panel/.env.example) | Frontend environment variables template |
 
 ---
 
@@ -273,10 +275,23 @@ PR is merged to main
         ↓
 GitHub Actions deployment triggered
         ↓
-Connect to VPS via SSH
+Build frontend (React + Vite)
+        ↓
+Deploy frontend to VPS via SCP
+        ↓
+Connect to backend via SSH
         ↓
 Pull latest code: git pull
         ↓
+Reinstall dependencies: npm ci
+        ↓
+Restart Node.js backend: systemctl restart
+        ↓
+✅ Both frontend and backend updated
+        ↓
+Access via:
+  - Frontend: http://YOUR_VPS_IP/
+  - Backend API: http://YOUR_VPS_IP/api/
 Reinstall dependencies: npm ci
         ↓
 Restart service: systemctl restart mic-backend
