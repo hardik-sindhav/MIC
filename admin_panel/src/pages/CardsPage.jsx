@@ -61,7 +61,7 @@ export function CardsPage() {
       const data = await fetchCards(accessToken)
       setItems(Array.isArray(data.items) ? data.items : [])
     } catch (e) {
-      toast.error(e.message || 'Could not load cards.')
+      toast.error(e.message || 'Could not load cards.Pls retry.')
       setItems([])
     } finally {
       setLoading(false)
