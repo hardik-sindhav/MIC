@@ -1,0 +1,204 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  MIC Admin — design tokens (RGB channels for Tailwind alpha support).
+*/
+
+:root {
+  --font-sans: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Syne', 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --color-accent: 8 145 178;
+  --color-accent-fg: 255 255 255;
+
+  --color-primary: 24 24 27;
+  --color-primary-fg: 250 250 250;
+  --color-primary-muted: 113 113 122;
+
+  --color-secondary: 63 63 70;
+  --color-secondary-fg: 250 250 250;
+
+  --color-success: 22 101 52;
+  --color-error: 185 28 28;
+
+  --color-surface: 255 255 255;
+  --color-surface-elevated: 252 252 253;
+  --color-surface-muted: 245 245 247;
+
+  --color-border: 228 228 231;
+  --color-border-strong: 212 212 216;
+
+  --color-fg: 24 24 27;
+  --color-fg-muted: 63 63 70;
+  --color-fg-subtle: 113 113 122;
+
+  color-scheme: light;
+
+  /* Keep in sync with <Toaster duration={…} /> in App.jsx */
+  --mic-toast-duration-ms: 5000ms;
+}
+
+.dark {
+  --color-accent: 34 211 238;
+  --color-accent-fg: 9 9 11;
+
+  --color-primary: 250 250 250;
+  --color-primary-fg: 24 24 27;
+  --color-primary-muted: 161 161 170;
+
+  --color-secondary: 212 212 216;
+  --color-secondary-fg: 24 24 27;
+
+  --color-success: 74 222 128;
+  --color-error: 248 113 113;
+
+  --color-surface: 9 9 11;
+  --color-surface-elevated: 17 17 19;
+  --color-surface-muted: 14 14 16;
+
+  --color-border: 39 39 42;
+  --color-border-strong: 63 63 70;
+
+  --color-fg: 250 250 250;
+  --color-fg-muted: 161 161 170;
+  --color-fg-subtle: 113 113 122;
+
+  color-scheme: dark;
+}
+
+@layer base {
+  html {
+    @apply antialiased transition-colors duration-theme;
+  }
+
+  body {
+    @apply min-h-dvh bg-surface-muted text-foreground;
+  }
+
+  #root {
+    @apply min-h-dvh;
+  }
+}
+
+@layer utilities {
+  .auth-dot-grid {
+    background-color: rgb(var(--color-surface-muted));
+    background-image: radial-gradient(
+      rgb(var(--color-border-strong) / 0.35) 1px,
+      transparent 1px
+    );
+    background-size: 20px 20px;
+  }
+
+  .dark .auth-dot-grid {
+    background-image: radial-gradient(
+      rgb(var(--color-border-strong) / 0.25) 1px,
+      transparent 1px
+    );
+  }
+}
+
+/* Star rating range — thumb */
+.mic-star-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+}
+.mic-star-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgb(var(--color-accent));
+  cursor: pointer;
+  border: 2px solid rgb(var(--color-surface));
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.15);
+}
+.mic-star-range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgb(var(--color-accent));
+  cursor: pointer;
+  border: 2px solid rgb(var(--color-surface));
+}
+
+/* Sonner: dismiss timer bar (matches <Toaster duration={5000} />; pauses on hover like Sonner’s timer) */
+[data-sonner-toast].mic-toast [data-content]::after {
+  content: '';
+  display: block;
+  height: 3px;
+  margin: 12px -16px -16px;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    rgb(var(--color-accent) / 0.85),
+    rgb(var(--color-accent) / 0.35)
+  );
+  transform-origin: left;
+  animation: mic-toast-progress var(--mic-toast-duration-ms) linear forwards;
+}
+
+[data-sonner-toast].mic-toast:hover [data-content]::after {
+  animation-play-state: paused;
+}
+
+@keyframes mic-toast-progress {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* Delete card confirmation — backdrop + panel + icon */
+@keyframes mic-delete-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes mic-delete-panel-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+@keyframes mic-delete-icon-pop {
+  0% {
+    transform: scale(0.5) rotate(-12deg);
+    opacity: 0;
+  }
+  55% {
+    transform: scale(1.06) rotate(4deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0);
+    opacity: 1;
+  }
+}
+@keyframes mic-delete-halo {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 0 rgb(var(--color-error) / 0.28),
+      0 0 20px -4px rgb(var(--color-error) / 0.2);
+  }
+  50% {
+    box-shadow:
+      0 0 0 8px rgb(var(--color-error) / 0),
+      0 0 28px -2px rgb(var(--color-error) / 0.35);
+  }
+}
