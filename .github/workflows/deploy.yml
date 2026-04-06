@@ -198,8 +198,9 @@ jobs:
           git checkout main
           git pull origin main
           
-          # Install dependencies
-          echo "📦 Installing dependencies..."
+          # Navigate to backend folder and install dependencies
+          cd backend
+          echo "📦 Installing backend dependencies..."
           npm ci
           
           # Restart backend service
