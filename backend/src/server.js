@@ -1,48 +1,101 @@
-import pino from 'pino'
-import { createApp } from './app.js'
-import { connectDatabase, disconnectDatabase } from './config/database.js'
-import { env } from './config/env.js'
-import { ensureBootstrapAdmin } from './services/adminBootstrap.service.js'
+import express from 'express'
+import cors from 'cors'
+import helmet from 'helmet'
+import morgan from 'morgan'
 
-const logger = pino({ level: env.LOG_LEVEL })
+/* Import your routes here */
+import authRoutes from './routes/auth.routes.js'
+// import other routes if needed
 
-async function main() {
-  await connectDatabase(logger)
-  await ensureBootstrapAdmin(logger)
+export function createApp(logger) {
+  const app = express()
 
-  const app = createApp(logger)
-  const server = app.listen(env.PORT, env.HOST, () => {
-    logger.info(
-      { host: env.HOST, port: env.PORT, env: env.NODE_ENV },
-      'MIC API listening',
-    )
-  })
+  /*
+   SECURITY MIDDLEWARE
+  */
+  app.use(helmet())
 
-  server.on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-      logger.fatal(
-        { port: env.PORT, host: env.HOST },
-        `Port ${env.PORT} is already in use — stop the other process or set PORT in .env`,
-      )
-      process.exit(1)
-    }
-    throw err
-  })
+  /*
+   CORS CONFIG (IMPORTANT FIX)
+  */
+  const allowedOrigins = [
+    'https://admin.mic.xfinai.cloud',
+    'https://mic.xfinai.cloud',
+    'http://localhost:5173', // local dev
+    'http://localhost:3000'  // optional
+  ]
 
-  const shutdown = async (signal) => {
-    logger.info({ signal }, 'Shutting down')
-    server.close(async () => {
-      await disconnectDatabase()
-      process.exit(0)
+  app.use(cors({
+    origin: function (origin, callback) {
+      // allow requests with no origin (like Postman)
+      if (!origin) return callback(null, true)
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true)
+      } else {
+        callback(new Error('Not allowed by CORS'))
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+  }))
+
+  /*
+   HANDLE PREFLIGHT (VERY IMPORTANT)
+  */
+  app.options('*', cors())
+
+  /*
+   BODY PARSER
+  */
+  app.use(express.json())
+  app.use(express.urlencoded({ extended: true }))
+
+  /*
+   LOGGING
+  */
+  app.use(morgan('dev'))
+
+  /*
+   HEALTH CHECK ROUTE
+  */
+  app.get('/api/health', (req, res) => {
+    res.json({
+      status: 'ok',
+      message: 'MIC API running'
     })
-    setTimeout(() => process.exit(1), 10_000).unref()
-  }
+  })
 
-  process.on('SIGTERM', () => shutdown('SIGTERM'))
-  process.on('SIGINT', () => shutdown('SIGINT'))
+  /*
+   ROUTES
+  */
+  app.use('/api/auth', authRoutes)
+
+  // add more routes like:
+  // app.use('/api/admin', adminRoutes)
+
+  /*
+   404 HANDLER
+  */
+  app.use((req, res) => {
+    res.status(404).json({
+      success: false,
+      message: 'Route not found'
+    })
+  })
+
+  /*
+   ERROR HANDLER
+  */
+  app.use((err, req, res, next) => {
+    logger.error(err)
+
+    res.status(500).json({
+      success: false,
+      message: err.message || 'Internal Server Error'
+    })
+  })
+
+  return app
 }
-
-main().catch((err) => {
-  console.error(err)
-  process.exit(1)
-})
