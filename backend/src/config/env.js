@@ -96,7 +96,7 @@ export function buildMongoUri() {
 export function getCorsOrigins() {
   const raw = env.CORS_ORIGINS.trim()
   if (!raw) {
-    return env.NODE_ENV === 'production' ? [] : ['http://localhost:5173', 'http://127.0.0.1:5173']
+    return env.NODE_ENV === 'production' ? ['https://admin.mic.xfinai.cloud'] : ['http://localhost:5173', 'http://127.0.0.1:5173']
   }
   return raw
     .split(',')
