@@ -32,4 +32,4 @@ adminSchema.methods.isLocked = function isLocked() {
   return this.lockUntil != null && this.lockUntil > new Date()
 }
 
-export const Admin = mongoose.models.Admin || mongoose.model('Admin', adminSchema)
+export const Admin = mongoose.models.Admin || mongoose.model('Admin', adminSchema, 'admins')

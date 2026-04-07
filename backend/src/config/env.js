@@ -88,9 +88,9 @@ export function buildMongoUri() {
   if (user && pass) {
     const u = encodeURIComponent(user)
     const p = encodeURIComponent(pass)
-    return `mongodb://${u}:${p}@${env.MONGO_HOST}:${env.MONGO_PORT}/${env.MONGO_DB_NAME}?authSource=admin`
+    return `mongodb://${u}:${p}@${env.MONGO_HOST}:${env.MONGO_PORT}/${env.MONGO_DB_NAME}?authSource=admin&directConnection=true`
   }
-  return `mongodb://${env.MONGO_HOST}:${env.MONGO_PORT}/${env.MONGO_DB_NAME}`
+  return `mongodb://${env.MONGO_HOST}:${env.MONGO_PORT}/${env.MONGO_DB_NAME}?directConnection=true`
 }
 
 export function getCorsOrigins() {
