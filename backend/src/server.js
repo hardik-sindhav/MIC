@@ -4,6 +4,8 @@ import helmet from 'helmet'
 import morgan from 'morgan'
 import pino from 'pino'
 
+import { getCorsOrigins } from './config/env.js'
+
 /* Import your routes here */
 import { authRoutes } from './routes/auth.routes.js'
 // import other routes if needed
@@ -21,14 +23,9 @@ export function createApp(logger) {
   app.use(helmet())
 
   /*
-   CORS CONFIG (IMPORTANT FIX)
+   CORS CONFIG
   */
-  const allowedOrigins = [
-    'https://admin.mic.xfinai.cloud',
-    'https://mic.xfinai.cloud',
-    'http://localhost:5173', // local dev
-    'http://localhost:3000'  // optional
-  ]
+  const allowedOrigins = getCorsOrigins()
 
   app.use(cors({
     origin: function (origin, callback) {
@@ -47,7 +44,7 @@ export function createApp(logger) {
   }))
 
   /*
-   HANDLE PREFLIGHT (VERY IMPORTANT)
+   HANDLE PREFLIGHT
   */
   app.options('*', cors())
 
@@ -111,7 +108,19 @@ export function createApp(logger) {
 const PORT = process.env.PORT || 3000
 const app = createApp(logger)
 
-app.listen(PORT, () => {
-  logger.info(`Server running on port ${PORT}`)
-  logger.info(`Health check: http://localhost:${PORT}/api/health`)
-})
+import { connectDatabase } from './config/database.js'
+
+async function startServer() {
+  try {
+    await connectDatabase(logger)
+    app.listen(PORT, () => {
+      logger.info(`Server running on port ${PORT}`)
+      logger.info(`Health check: http://localhost:${PORT}/api/health`)
+    })
+  } catch (error) {
+    logger.error('Failed to start server:', error)
+    process.exit(1)
+  }
+}
+
+startServer()
