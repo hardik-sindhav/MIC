@@ -27,7 +27,7 @@ export function createApp(logger) {
 
   app.use(cors({
     origin: function (origin, callback) {
-      // allow requests with no origin (like Postman)
+      // allow requests with no origin 
       if (!origin) return callback(null, true)
 
       if (allowedOrigins.includes(origin)) {
