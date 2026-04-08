@@ -25,6 +25,21 @@ const catalogTheadRow =
 
 const th = 'px-4 py-3.5 text-[11px] font-semibold uppercase tracking-wide text-foreground-muted'
 
+const MONSTER_TYPES = {
+  Pyre: '🔥 Pyre',
+  Abyss: '💧 Abyss',
+  Nature: '🌿 Nature',
+  Earth: '⛰️ Earth',
+  Thunder: '⚡ Thunder',
+  Frost: '❄️ Frost',
+  Void: '🌑 Void',
+  Celestial: '✨ Celestial',
+  Necro: '💀 Necro',
+  Iron: '⚙️ Iron',
+  Aero: '🌪️ Aero',
+  Venom: '🧪 Venom',
+}
+
 export function CardsPage() {
   const { accessToken } = useAuth()
   const [items, setItems] = useState([])
@@ -177,6 +192,7 @@ export function CardsPage() {
               <tr className={catalogTheadRow}>
                 <th className={`${th} pl-5 sm:pl-6`}>Art</th>
                 <th className={th}>Card</th>
+                <th className={th}>Type</th>
                 <th className={`${th} text-right`}>HP</th>
                 <th className={`${th} text-right`}>Atk</th>
                 <th className={`${th} text-right`}>Def</th>
@@ -210,6 +226,11 @@ export function CardsPage() {
                   <td className="max-w-[220px] px-4 py-3.5 align-middle sm:max-w-xs">
                     <span className="font-display text-[15px] font-semibold leading-snug tracking-tight text-foreground line-clamp-2">
                       {card.name}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3.5 align-middle">
+                    <span className="inline-flex items-center rounded-full border border-border bg-surface-muted/50 px-2.5 py-1 text-[11px] font-semibold text-foreground dark:bg-surface-muted/30">
+                      {MONSTER_TYPES[card.type] || card.type || '—'}
                     </span>
                   </td>
                   <td className="px-4 py-3.5 align-middle text-right">
@@ -328,6 +349,7 @@ export function CardsPage() {
                     <tr className={catalogTheadRow}>
                       <th className={`${th} pl-5 sm:pl-6`}>Art</th>
                       <th className={th}>Card</th>
+                      <th className={th}>Type</th>
                       <th className={`${th} text-right`}>HP</th>
                       <th className={`${th} text-right`}>Atk</th>
                       <th className={`${th} text-right`}>Def</th>
@@ -361,6 +383,11 @@ export function CardsPage() {
                         <td className="max-w-[220px] px-4 py-3.5 align-middle sm:max-w-xs">
                           <span className="font-display text-[15px] font-semibold leading-snug tracking-tight text-foreground line-clamp-2">
                             {card.name}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5 align-middle">
+                          <span className="inline-flex items-center rounded-full border border-border bg-surface-muted/50 px-2.5 py-1 text-[11px] font-semibold text-foreground dark:bg-surface-muted/30">
+                            {MONSTER_TYPES[card.type] || card.type || '—'}
                           </span>
                         </td>
                         <td className="px-4 py-3.5 align-middle text-right">

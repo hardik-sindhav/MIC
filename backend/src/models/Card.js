@@ -11,6 +11,15 @@ const cardSchema = new mongoose.Schema(
     totalMagic: { type: Number, required: true, min: 0, max: 999999 },
     stars: { type: Number, required: true, min: 1, max: 5 },
     rarity: { type: Number, required: true, min: 0, max: 100, default: 0 },
+    type: { 
+      type: String, 
+      required: true, 
+      enum: [
+        "Pyre", "Abyss", "Nature", "Earth", "Thunder", "Frost", 
+        "Void", "Celestial", "Necro", "Iron", "Aero", "Venom"
+      ],
+      default: "Pyre"
+    },
     abilities: { type: String, trim: true, default: '' },
     active: { type: Boolean, required: true, default: true },
     /** Soft delete: set when “deleted”; null = active catalog entry */

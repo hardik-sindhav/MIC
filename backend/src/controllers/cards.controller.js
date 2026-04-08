@@ -31,6 +31,7 @@ const createBodySchema = z.object({
   totalMagic: z.coerce.number().int().min(0).max(999999),
   stars: z.coerce.number().int().min(1).max(5),
   rarity: z.coerce.number().int().min(0).max(100),
+  type: z.enum(["Pyre", "Abyss", "Nature", "Earth", "Thunder", "Frost", "Void", "Celestial", "Necro", "Iron", "Aero", "Venom"]),
   abilities: z.string().trim().optional().default(''),
   active: z.preprocess((v) => parseBoolean(v), z.boolean()),
 })
@@ -43,6 +44,7 @@ const updateBodySchema = z.object({
   totalMagic: z.coerce.number().int().min(0).max(999999),
   stars: z.coerce.number().int().min(1).max(5),
   rarity: z.coerce.number().int().min(0).max(100),
+  type: z.enum(["Pyre", "Abyss", "Nature", "Earth", "Thunder", "Frost", "Void", "Celestial", "Necro", "Iron", "Aero", "Venom"]),
   abilities: z.string().trim().optional().default(''),
   active: z.preprocess((v) => parseBoolean(v), z.boolean()),
 })

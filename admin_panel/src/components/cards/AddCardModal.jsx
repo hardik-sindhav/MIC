@@ -21,6 +21,7 @@ const emptyErrors = {
   totalMagic: '',
   stars: '',
   rarity: '',
+  type: '',
   abilities: '',
 }
 
@@ -33,6 +34,7 @@ function validate({
   totalMagic,
   stars,
   rarity,
+  type,
   abilities,
 }) {
   const e = { ...emptyErrors }
@@ -82,6 +84,21 @@ function validate({
   return e
 }
 
+const MONSTER_TYPES = [
+  { value: 'Pyre', label: '🔥 Pyre' },
+  { value: 'Abyss', label: '💧 Abyss' },
+  { value: 'Nature', label: '🌿 Nature' },
+  { value: 'Earth', label: '⛰️ Earth' },
+  { value: 'Thunder', label: '⚡ Thunder' },
+  { value: 'Frost', label: '❄️ Frost' },
+  { value: 'Void', label: '🌑 Void' },
+  { value: 'Celestial', label: '✨ Celestial' },
+  { value: 'Necro', label: '💀 Necro' },
+  { value: 'Iron', label: '⚙️ Iron' },
+  { value: 'Aero', label: '🌪️ Aero' },
+  { value: 'Venom', label: '🧪 Venom' },
+]
+
 export function AddCardModal({ open, accessToken, onClose, onCreated, editingCard = null }) {
   const isEdit = Boolean(editingCard?._id)
   const hydrateKeyRef = useRef('')
@@ -100,6 +117,7 @@ export function AddCardModal({ open, accessToken, onClose, onCreated, editingCar
   const [totalMagic, setTotalMagic] = useState('')
   const [stars, setStars] = useState(3)
   const [rarity, setRarity] = useState(0)
+  const [type, setType] = useState('Pyre')
   const [abilities, setAbilities] = useState('')
   const [active, setActive] = useState(true)
   const [errors, setErrors] = useState(emptyErrors)
@@ -118,6 +136,7 @@ export function AddCardModal({ open, accessToken, onClose, onCreated, editingCar
     setTotalMagic('')
     setStars(3)
     setRarity(0)
+    setType('Pyre')
     setAbilities('')
     setActive(true)
     setErrors(emptyErrors)
@@ -151,6 +170,7 @@ export function AddCardModal({ open, accessToken, onClose, onCreated, editingCar
       setTotalMagic(editingCard.totalMagic != null ? String(editingCard.totalMagic) : '')
       setStars(Math.min(5, Math.max(1, Number(editingCard.stars) || 3)))
       setRarity(Math.min(100, Math.max(0, Number(editingCard.rarity) || 0)))
+      setType(editingCard.type || 'Pyre')
       setAbilities(editingCard.abilities || '')
       setActive(editingCard.active !== false)
       setErrors(emptyErrors)
@@ -196,6 +216,7 @@ export function AddCardModal({ open, accessToken, onClose, onCreated, editingCar
       totalMagic,
       stars,
       rarity,
+      type,
       abilities,
     })
     setErrors(nextErrors)
@@ -222,6 +243,7 @@ export function AddCardModal({ open, accessToken, onClose, onCreated, editingCar
       formData.append('totalMagic', String(Number(totalMagic)))
       formData.append('stars', String(Number(stars)))
       formData.append('rarity', String(Number(rarity)))
+      formData.append('type', type)
       formData.append('abilities', abilities.trim())
       formData.append('active', String(active))
 
@@ -420,6 +442,31 @@ export function AddCardModal({ open, accessToken, onClose, onCreated, editingCar
           }}
           error={errors.rarity}
         />
+
+        <div>
+          <label className="mb-2 block font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-accent">
+            Monster Type
+            <span className="ml-1 font-sans text-error" aria-hidden>
+              *
+            </span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {MONSTER_TYPES.map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => setType(t.value)}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all ${
+                  type === t.value
+                    ? 'border-accent bg-accent text-accent-foreground shadow-glow'
+                    : 'border-border bg-surface text-foreground-muted hover:border-border-strong hover:bg-surface-muted dark:bg-surface-elevated'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <Textarea
           id={`${formId}-abilities`}
