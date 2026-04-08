@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { createCard, updateCard } from '../../api/cards.js'
 import { Button } from '../ui/Button.jsx'
 import { Input } from '../ui/Input.jsx'
+import { Textarea } from '../ui/Textarea.jsx'
 import { Modal } from '../ui/Modal.jsx'
 import { RaritySlider } from '../ui/RaritySlider.jsx'
 import { StarSlider } from '../ui/StarSlider.jsx'
@@ -20,6 +21,7 @@ const emptyErrors = {
   totalMagic: '',
   stars: '',
   rarity: '',
+  abilities: '',
 }
 
 function validate({
@@ -31,6 +33,7 @@ function validate({
   totalMagic,
   stars,
   rarity,
+  abilities,
 }) {
   const e = { ...emptyErrors }
   if (!name?.trim()) e.name = 'Name is required.'
@@ -97,6 +100,7 @@ export function AddCardModal({ open, accessToken, onClose, onCreated, editingCar
   const [totalMagic, setTotalMagic] = useState('')
   const [stars, setStars] = useState(3)
   const [rarity, setRarity] = useState(0)
+  const [abilities, setAbilities] = useState('')
   const [active, setActive] = useState(true)
   const [errors, setErrors] = useState(emptyErrors)
   const [submitting, setSubmitting] = useState(false)
@@ -114,6 +118,7 @@ export function AddCardModal({ open, accessToken, onClose, onCreated, editingCar
     setTotalMagic('')
     setStars(3)
     setRarity(0)
+    setAbilities('')
     setActive(true)
     setErrors(emptyErrors)
   }, [])
@@ -146,6 +151,7 @@ export function AddCardModal({ open, accessToken, onClose, onCreated, editingCar
       setTotalMagic(editingCard.totalMagic != null ? String(editingCard.totalMagic) : '')
       setStars(Math.min(5, Math.max(1, Number(editingCard.stars) || 3)))
       setRarity(Math.min(100, Math.max(0, Number(editingCard.rarity) || 0)))
+      setAbilities(editingCard.abilities || '')
       setActive(editingCard.active !== false)
       setErrors(emptyErrors)
     } else {
@@ -190,6 +196,7 @@ export function AddCardModal({ open, accessToken, onClose, onCreated, editingCar
       totalMagic,
       stars,
       rarity,
+      abilities,
     })
     setErrors(nextErrors)
     if (Object.values(nextErrors).some(Boolean)) {
@@ -215,6 +222,7 @@ export function AddCardModal({ open, accessToken, onClose, onCreated, editingCar
       formData.append('totalMagic', String(Number(totalMagic)))
       formData.append('stars', String(Number(stars)))
       formData.append('rarity', String(Number(rarity)))
+      formData.append('abilities', abilities.trim())
       formData.append('active', String(active))
 
       // Append image file if selected (new or replacement)
@@ -411,6 +419,19 @@ export function AddCardModal({ open, accessToken, onClose, onCreated, editingCar
             setErrors((p) => ({ ...p, rarity: '' }))
           }}
           error={errors.rarity}
+        />
+
+        <Textarea
+          id={`${formId}-abilities`}
+          label="Abilities"
+          value={abilities}
+          onChange={(e) => {
+            setAbilities(e.target.value)
+            setErrors((p) => ({ ...p, abilities: '' }))
+          }}
+          error={errors.abilities}
+          placeholder="e.g. Double Strike, Flying"
+          rows={3}
         />
 
         <div>

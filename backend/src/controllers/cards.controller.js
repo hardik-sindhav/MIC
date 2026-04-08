@@ -31,6 +31,7 @@ const createBodySchema = z.object({
   totalMagic: z.coerce.number().int().min(0).max(999999),
   stars: z.coerce.number().int().min(1).max(5),
   rarity: z.coerce.number().int().min(0).max(100),
+  abilities: z.string().trim().optional().default(''),
   active: z.preprocess((v) => parseBoolean(v), z.boolean()),
 })
 
@@ -42,6 +43,7 @@ const updateBodySchema = z.object({
   totalMagic: z.coerce.number().int().min(0).max(999999),
   stars: z.coerce.number().int().min(1).max(5),
   rarity: z.coerce.number().int().min(0).max(100),
+  abilities: z.string().trim().optional().default(''),
   active: z.preprocess((v) => parseBoolean(v), z.boolean()),
 })
 

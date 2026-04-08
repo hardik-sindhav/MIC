@@ -11,6 +11,7 @@ const cardSchema = new mongoose.Schema(
     totalMagic: { type: Number, required: true, min: 0, max: 999999 },
     stars: { type: Number, required: true, min: 1, max: 5 },
     rarity: { type: Number, required: true, min: 0, max: 100, default: 0 },
+    abilities: { type: String, trim: true, default: '' },
     active: { type: Boolean, required: true, default: true },
     /** Soft delete: set when “deleted”; null = active catalog entry */
     deletedAt: { type: Date, default: null },

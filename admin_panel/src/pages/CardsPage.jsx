@@ -181,6 +181,7 @@ export function CardsPage() {
                 <th className={`${th} text-right`}>Atk</th>
                 <th className={`${th} text-right`}>Def</th>
                 <th className={`${th} text-right`}>Mag</th>
+                <th className={th}>Abilities</th>
                 <th className={`${th} text-center`}>Star</th>
                 <th className={`${th} text-right`}>Rarity</th>
                 <th className={th}>Status</th>
@@ -229,6 +230,11 @@ export function CardsPage() {
                   <td className="px-4 py-3.5 align-middle text-right">
                     <span className="inline-flex min-w-[2.75rem] justify-end rounded-lg bg-surface-muted/80 px-2 py-1 font-mono text-xs font-semibold tabular-nums text-foreground dark:bg-surface-muted/50">
                       {card.totalMagic ?? '—'}
+                    </span>
+                  </td>
+                  <td className="max-w-[150px] px-4 py-3.5 align-middle">
+                    <span className="text-xs font-medium text-foreground-muted line-clamp-1" title={card.abilities}>
+                      {card.abilities || '—'}
                     </span>
                   </td>
                   <td className="px-4 py-3.5 align-middle">
@@ -326,6 +332,7 @@ export function CardsPage() {
                       <th className={`${th} text-right`}>Atk</th>
                       <th className={`${th} text-right`}>Def</th>
                       <th className={`${th} text-right`}>Mag</th>
+                      <th className={th}>Abilities</th>
                       <th className={`${th} text-center`}>Star</th>
                       <th className={`${th} text-right`}>Rarity</th>
                       <th className={th}>Status</th>
@@ -371,12 +378,17 @@ export function CardsPage() {
                             {card.totalDefense ?? '—'}
                           </span>
                         </td>
-                        <td className="px-4 py-3.5 align-middle text-right">
-                          <span className="inline-flex min-w-[2.75rem] justify-end rounded-lg bg-surface-muted/80 px-2 py-1 font-mono text-xs font-semibold tabular-nums text-foreground dark:bg-surface-muted/50">
-                            {card.totalMagic ?? '—'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3.5 align-middle">
+                          <td className="px-4 py-3.5 align-middle text-right">
+                            <span className="inline-flex min-w-[2.75rem] justify-end rounded-lg bg-surface-muted/80 px-2 py-1 font-mono text-xs font-semibold tabular-nums text-foreground dark:bg-surface-muted/50">
+                              {card.totalMagic ?? '—'}
+                            </span>
+                          </td>
+                          <td className="max-w-[150px] px-4 py-3.5 align-middle">
+                            <span className="text-xs font-medium text-foreground-muted line-clamp-1" title={card.abilities}>
+                              {card.abilities || '—'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5 align-middle">
                           <div
                             className="flex items-center justify-center gap-0.5 rounded-lg bg-surface-muted/50 px-1.5 py-1 dark:bg-surface-muted/30"
                             title={`${card.stars ?? 0} / 5`}

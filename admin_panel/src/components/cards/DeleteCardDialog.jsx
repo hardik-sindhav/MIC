@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { Archive, X } from 'lucide-react'
 import { Button } from '../ui/Button.jsx'
+import { API_BASE_URL } from '../../config/env.js'
 
 /**
  * Archive confirmation — matches main Modal shell / catalog styling.
@@ -81,7 +82,11 @@ export function DeleteCardDialog({ open, card, onClose, onConfirm, loading }) {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
             {card.image ? (
               <div className="relative mx-auto h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-xl border border-border bg-surface-muted shadow-sm ring-1 ring-black/[0.06] dark:ring-white/[0.08] sm:mx-0 sm:h-20 sm:w-20">
-                <img src={card.image} alt="" className="h-full w-full object-cover" />
+                <img
+                  src={card.image?.startsWith('/') ? `${API_BASE_URL}${card.image}` : card.image}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
               </div>
             ) : null}
             <div className="min-w-0 flex-1 text-center sm:text-left">

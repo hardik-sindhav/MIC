@@ -41,6 +41,7 @@ export async function createCard(payload) {
     totalMagic: payload.totalMagic,
     stars: payload.stars,
     rarity: payload.rarity,
+    abilities: payload.abilities || '',
     active: payload.active,
     deletedAt: null,
   })
@@ -80,6 +81,7 @@ export async function updateCardById(id, payload) {
   card.totalMagic = payload.totalMagic
   card.stars = payload.stars
   card.rarity = payload.rarity
+  card.abilities = payload.abilities || ''
   card.active = payload.active
 
   await card.save()
