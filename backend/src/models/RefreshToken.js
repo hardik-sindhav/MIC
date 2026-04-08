@@ -5,11 +5,11 @@ const refreshTokenSchema = new mongoose.Schema(
   {
     tokenHash: { type: String, required: true, unique: true },
     adminId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Admin',
+      type: mongoose.Schema.Types.Mixed, // Can be ObjectId (DB admin) or String (env admin email)
       required: true,
       index: true,
     },
+    isEnvToken: { type: Boolean, default: false }, // True for env-based admin tokens
     expiresAt: { type: Date, required: true },
     revokedAt: { type: Date, default: null },
     userAgent: { type: String, maxlength: 512, default: '' },

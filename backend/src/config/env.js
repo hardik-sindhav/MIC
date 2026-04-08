@@ -96,10 +96,40 @@ export function buildMongoUri() {
 export function getCorsOrigins() {
   const raw = env.CORS_ORIGINS.trim()
   if (!raw) {
-    return env.NODE_ENV === 'production' ? ['https://admin.mic.xfinai.cloud'] : ['http://localhost:5173', 'http://127.0.0.1:5173']
+    if (env.NODE_ENV === 'production') {
+      return ['https://admin.mic.xfinai.cloud']
+    }
+    // Development: include common localhost variants
+    return [
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'http://localhost:8080',
+      'http://127.0.0.1:8080'
+    ]
   }
-  return raw
+  const origins = raw
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean)
+  
+  // In development, always add common localhost variants
+  if (env.NODE_ENV === 'development') {
+    const defaultDevOrigins = [
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'http://localhost:8080',
+      'http://127.0.0.1:8080'
+    ]
+    for (const origin of defaultDevOrigins) {
+      if (!origins.includes(origin)) {
+        origins.push(origin)
+      }
+    }
+  }
+  
+  return origins
 }

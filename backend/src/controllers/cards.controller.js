@@ -1,3 +1,5 @@
+import fs from 'fs'
+import path from 'path'
 import mongoose from 'mongoose'
 import { z } from 'zod'
 import {
@@ -8,64 +10,51 @@ import {
   softDeleteCardById,
   updateCardById,
 } from '../services/cards.service.js'
+import { Card } from '../models/Card.js'
 
-/** 5 MB file as base64 data URL ≈ 6.7M chars — cap slightly above */
-const MAX_DATA_URL_CHARS = 7_200_000
-
-function isDataImage(v) {
-  const t = v.trim()
-  return t.startsWith('data:image/') && t.length <= MAX_DATA_URL_CHARS
-}
-
-function isLegacyImageUrl(v) {
-  const t = v.trim()
-  try {
-    const u = new URL(t)
-    return u.protocol === 'http:' || u.protocol === 'https:'
-  } catch {
-    return false
+// Helper to parse string to boolean (for FormData)
+function parseBoolean(value) {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'string') {
+    return value.toLowerCase() === 'true'
   }
+  return Boolean(value)
 }
 
-const imageSchema = z
-  .string()
-  .min(1, 'Card image is required')
-  .refine((v) => isDataImage(v), { message: 'Image must be an uploaded file (data URL), max 5 MB' })
-
-/** Update: allow keeping an existing https image or a new data URL */
-const updateImageSchema = z
-  .string()
-  .min(1, 'Card image is required')
-  .refine((v) => isDataImage(v) || isLegacyImageUrl(v), {
-    message: 'Image must be a data URL (max 5 MB) or valid http(s) link',
-  })
-
+// Validation schemas for card data (image is handled by multer)
+// Uses z.coerce for all types to handle FormData string values
 const createBodySchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(200),
-  image: imageSchema,
   totalHp: z.coerce.number().int().min(0).max(999999),
   totalAttack: z.coerce.number().int().min(0).max(999999),
   totalDefense: z.coerce.number().int().min(0).max(999999),
   totalMagic: z.coerce.number().int().min(0).max(999999),
   stars: z.coerce.number().int().min(1).max(5),
   rarity: z.coerce.number().int().min(0).max(100),
-  active: z.boolean(),
+  active: z.preprocess((v) => parseBoolean(v), z.boolean()),
 })
 
 const updateBodySchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(200),
-  image: updateImageSchema,
   totalHp: z.coerce.number().int().min(0).max(999999),
   totalAttack: z.coerce.number().int().min(0).max(999999),
   totalDefense: z.coerce.number().int().min(0).max(999999),
   totalMagic: z.coerce.number().int().min(0).max(999999),
   stars: z.coerce.number().int().min(1).max(5),
   rarity: z.coerce.number().int().min(0).max(100),
-  active: z.boolean(),
+  active: z.preprocess((v) => parseBoolean(v), z.boolean()),
 })
 
 export async function postCard(req, res, next) {
   try {
+    // Check if image file was uploaded
+    if (!req.file) {
+      return res.status(400).json({
+        error: 'Card image is required',
+        code: 'VALIDATION_ERROR',
+      })
+    }
+
     const parsed = createBodySchema.safeParse(req.body)
     if (!parsed.success) {
       return res.status(400).json({
@@ -74,7 +63,14 @@ export async function postCard(req, res, next) {
         details: parsed.error.flatten(),
       })
     }
-    const card = await createCard(parsed.data)
+
+    // Create card data with image path
+    const cardData = {
+      ...parsed.data,
+      image: `/uploads/${req.file.filename}`,
+    }
+
+    const card = await createCard(cardData)
     return res.status(201).json(card.toObject())
   } catch (e) {
     next(e)
@@ -90,12 +86,29 @@ export async function getCards(_req, res, next) {
   }
 }
 
+export async function getCardById(req, res, next) {
+  try {
+    const { id } = req.params
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ error: 'Invalid card id' })
+    }
+    const card = await Card.findById(id)
+    if (!card) {
+      return res.status(404).json({ error: 'Card not found' })
+    }
+    return res.status(200).json(card.toObject())
+  } catch (e) {
+    next(e)
+  }
+}
+
 export async function patchCard(req, res, next) {
   try {
     const { id } = req.params
     if (!mongoose.isValidObjectId(id)) {
       return res.status(400).json({ error: 'Invalid card id' })
     }
+
     const parsed = updateBodySchema.safeParse(req.body)
     if (!parsed.success) {
       return res.status(400).json({
@@ -104,7 +117,34 @@ export async function patchCard(req, res, next) {
         details: parsed.error.flatten(),
       })
     }
-    const card = await updateCardById(id, parsed.data)
+
+    // Build update data
+    const updateData = { ...parsed.data }
+
+    // If a new image was uploaded, delete the old one and update the path
+    if (req.file) {
+      // Get the old card to find the old image path
+      const oldCard = await Card.findById(id)
+      if (oldCard && oldCard.image) {
+        // Extract the filename from the old image path (e.g., "/uploads/filename.jpg" -> "filename.jpg")
+        const oldImagePath = oldCard.image.replace('/uploads/', '')
+        const fullOldPath = path.join(process.cwd(), 'uploads', oldImagePath)
+        
+        // Delete the old image file if it exists
+        try {
+          if (fs.existsSync(fullOldPath)) {
+            fs.unlinkSync(fullOldPath)
+          }
+        } catch (deleteError) {
+          // Log but don't fail if deletion fails
+          console.warn('Could not delete old image file:', fullOldPath, deleteError.message)
+        }
+      }
+      
+      updateData.image = `/uploads/${req.file.filename}`
+    }
+
+    const card = await updateCardById(id, updateData)
     if (!card) {
       return res.status(404).json({ error: 'Card not found' })
     }

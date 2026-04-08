@@ -40,9 +40,83 @@ function getRefreshExpiresAt() {
   return new Date(Date.now() + duration)
 }
 
+/**
+ * Check if credentials match environment variables (for env-based auth).
+ * Returns a virtual admin object if match, null otherwise.
+ */
+function checkEnvCredentials(email, password) {
+  if (!env.ADMIN_EMAIL || !env.ADMIN_PASSWORD) {
+    return null
+  }
+  const envEmail = env.ADMIN_EMAIL.toLowerCase().trim()
+  const envPassword = env.ADMIN_PASSWORD
+  if (email === envEmail && password === envPassword) {
+    // Return a virtual admin object for token generation
+    return {
+      _id: 'env-admin',
+      email: envEmail,
+      role: 'admin',
+      isEnvAdmin: true,
+    }
+  }
+  return null
+}
+
+/**
+ * Sign tokens for env-based admin (no database record)
+ */
+function signAccessTokenForEnvAdmin(admin) {
+  const payload = {
+    sub: admin.email, // Use email as sub for env admin
+    email: admin.email,
+    role: admin.role,
+    typ: 'access',
+  }
+  return jwt.sign(payload, env.JWT_SECRET, {
+    algorithm: 'HS256',
+    expiresIn: env.JWT_ACCESS_EXPIRES,
+    issuer: 'mic-api',
+    audience: 'mic-admin',
+  })
+}
+
 export async function login({ email, password, ip, userAgent }) {
   const normalizedEmail = String(email).toLowerCase().trim()
 
+  // First, check if credentials match environment variables
+  const envAdmin = checkEnvCredentials(normalizedEmail, password)
+  if (envAdmin) {
+    // Authenticate with env credentials - no database lookup needed
+    const accessToken = signAccessTokenForEnvAdmin(envAdmin)
+    const rawRefresh = crypto.randomBytes(48).toString('hex')
+    const tokenHash = hashRefreshToken(rawRefresh)
+    const expiresAt = getRefreshExpiresAt()
+
+    // Store refresh token with a special marker for env admin
+    await RefreshToken.create({
+      tokenHash,
+      adminId: envAdmin.email, // Use email as ID for env admin
+      expiresAt,
+      ip: ip ?? '',
+      userAgent: (userAgent ?? '').slice(0, 512),
+      isEnvToken: true,
+    })
+
+    const decodedAccess = jwt.decode(accessToken)
+    const expiresInSec =
+      typeof decodedAccess?.exp === 'number'
+        ? Math.max(0, decodedAccess.exp - Math.floor(Date.now() / 1000))
+        : 0
+
+    return {
+      accessToken,
+      refreshToken: rawRefresh,
+      tokenType: 'Bearer',
+      expiresIn: expiresInSec,
+    }
+  }
+
+  // Fall back to database authentication
   const admin = await Admin.findOne({ email: normalizedEmail }).select(
     '+passwordHash failedLoginAttempts lockUntil',
   )
@@ -122,6 +196,54 @@ export async function refreshSession({ rawRefreshToken, ip, userAgent }) {
     throw err
   }
 
+  // Handle env-based tokens (no database admin record)
+  if (doc.isEnvToken) {
+    // Verify env credentials are still valid
+    if (!env.ADMIN_EMAIL || !env.ADMIN_PASSWORD) {
+      const err = new Error('INVALID_REFRESH')
+      err.code = 'INVALID_REFRESH'
+      throw err
+    }
+
+    // Create virtual admin object
+    const envAdmin = {
+      _id: 'env-admin',
+      email: doc.adminId, // adminId stores the email for env tokens
+      role: 'admin',
+      isEnvAdmin: true,
+    }
+
+    const accessToken = signAccessTokenForEnvAdmin(envAdmin)
+    const rawRefresh = crypto.randomBytes(48).toString('hex')
+    const newHash = hashRefreshToken(rawRefresh)
+    const expiresAt = getRefreshExpiresAt()
+
+    // Revoke old token and create new one
+    await RefreshToken.updateOne({ _id: doc._id }, { $set: { revokedAt: new Date() } })
+    await RefreshToken.create({
+      tokenHash: newHash,
+      adminId: envAdmin.email,
+      expiresAt,
+      ip: ip ?? '',
+      userAgent: (userAgent ?? '').slice(0, 512),
+      isEnvToken: true,
+    })
+
+    const decodedAccess = jwt.decode(accessToken)
+    const expiresInSec =
+      typeof decodedAccess?.exp === 'number'
+        ? Math.max(0, decodedAccess.exp - Math.floor(Date.now() / 1000))
+        : 0
+
+    return {
+      accessToken,
+      refreshToken: rawRefresh,
+      tokenType: 'Bearer',
+      expiresIn: expiresInSec,
+    }
+  }
+
+  // Handle database admin tokens
   const admin = await Admin.findById(doc.adminId)
   if (!admin) {
     const err = new Error('INVALID_REFRESH')

@@ -19,23 +19,21 @@ export async function fetchCards(accessToken) {
 
 /**
  * @param {string} accessToken
- * @param {object} body
+ * @param {FormData} formData - FormData with 'image' file and other fields
  */
-export async function createCard(accessToken, body) {
+export async function createCard(accessToken, formData) {
   const res = await fetch(`${API_BASE_URL}/api/cards`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
       Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify(body),
+    body: formData,
   })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
     const err = new Error(
       data.error ||
-        (res.status === 413 ? 'File too large. Use an image under 5 MB.' : 'Failed to create card'),
+        (res.status === 413 ? 'File too large. Use an image under 10 MB.' : 'Failed to create card'),
     )
     err.status = res.status
     err.code = data.code || (res.status === 413 ? 'PAYLOAD_TOO_LARGE' : undefined)
@@ -48,23 +46,21 @@ export async function createCard(accessToken, body) {
 /**
  * @param {string} accessToken
  * @param {string} id
- * @param {object} body
+ * @param {FormData} formData - FormData with optional 'image' file and other fields
  */
-export async function updateCard(accessToken, id, body) {
+export async function updateCard(accessToken, id, formData) {
   const res = await fetch(`${API_BASE_URL}/api/cards/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
       Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify(body),
+    body: formData,
   })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
     const err = new Error(
       data.error ||
-        (res.status === 413 ? 'File too large. Use an image under 5 MB.' : 'Failed to update card'),
+        (res.status === 413 ? 'File too large. Use an image under 10 MB.' : 'Failed to update card'),
     )
     err.status = res.status
     err.code = data.code || (res.status === 413 ? 'PAYLOAD_TOO_LARGE' : undefined)

@@ -8,6 +8,7 @@ import { SectionHeader } from '../components/layout/SectionHeader.jsx'
 import { Button } from '../components/ui/Button.jsx'
 import { Loader } from '../components/ui/Loader.jsx'
 import { useAuth } from '../hooks/useAuth.js'
+import { API_BASE_URL } from '../config/env.js'
 
 function formatShortDate(value) {
   if (!value) return '—'
@@ -198,7 +199,7 @@ export function CardsPage() {
                   <td className="px-4 py-3.5 pl-5 align-middle sm:pl-6">
                     <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-border bg-surface-muted shadow-sm ring-1 ring-black/[0.06] dark:ring-white/[0.08]">
                       <img
-                        src={card.image}
+                        src={card.image?.startsWith('/') ? `${API_BASE_URL}${card.image}` : card.image}
                         alt=""
                         className="h-full w-full object-cover"
                         loading="lazy"
@@ -343,7 +344,7 @@ export function CardsPage() {
                         <td className="px-4 py-3.5 pl-5 align-middle sm:pl-6">
                           <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-border bg-surface-muted opacity-90 shadow-sm ring-1 ring-black/[0.06] dark:ring-white/[0.08]">
                             <img
-                              src={card.image}
+                              src={card.image?.startsWith('/') ? `${API_BASE_URL}${card.image}` : card.image}
                               alt=""
                               className="h-full w-full object-cover"
                               loading="lazy"

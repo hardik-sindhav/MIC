@@ -6,9 +6,8 @@ import pino from 'pino'
 
 import { getCorsOrigins } from './config/env.js'
 
-/* Import your routes here */
-import { authRoutes } from './routes/auth.routes.js'
-// import other routes if needed
+/* Import API routes */
+import { apiRouter } from './routes/index.js'
 
 const logger = pino({
   level: process.env.LOG_LEVEL || 'info',
@@ -25,7 +24,21 @@ export function createApp(logger) {
   /*
    SECURITY MIDDLEWARE
   */
-  app.use(helmet())
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", 'data:', 'blob:', '*'], // Allow images from any source (for cross-origin uploads)
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        mediaSrc: ["'self'"],
+        frameSrc: ["'none'"],
+      },
+    },
+  }))
 
   /*
    CORS CONFIG
@@ -44,20 +57,25 @@ export function createApp(logger) {
       }
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
   }))
 
   /*
-   HANDLE PREFLIGHT
+   HANDLE PREFLIGHT - ensure all methods are allowed
   */
-  app.options('*', cors())
+  app.options('*', cors({
+    origin: allowedOrigins,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+  }))
 
   /*
-   BODY PARSER
+   BODY PARSER (increased limit for image uploads - 10MB)
   */
-  app.use(express.json())
-  app.use(express.urlencoded({ extended: true }))
+  app.use(express.json({ limit: '10mb' }))
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 
   /*
    LOGGING
@@ -75,9 +93,21 @@ export function createApp(logger) {
   })
 
   /*
+   SERVE UPLOADED FILES (images) with CORS and CORP headers
+  */
+  app.use('/uploads', (req, res, next) => {
+    // Allow cross-origin requests
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Access-Control-Allow-Methods', 'GET')
+    // Allow cross-origin resource loading (required for images in cross-origin context)
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
+    next()
+  }, express.static('uploads'))
+
+  /*
    ROUTES
   */
-  app.use('/api/auth', authRoutes)
+  app.use('/api', apiRouter)
 
   // add more routes like:
   // app.use('/api/admin', adminRoutes)
@@ -98,7 +128,22 @@ export function createApp(logger) {
   app.use((err, req, res, next) => {
     logger.error(err)
 
-    res.status(500).json({
+    // Handle multer errors
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        message: 'File too large. Maximum size is 10MB.'
+      })
+    }
+
+    if (err.message && err.message.includes('Only image files')) {
+      return res.status(400).json({
+        success: false,
+        message: err.message
+      })
+    }
+
+    res.status(err.status || 500).json({
       success: false,
       message: err.message || 'Internal Server Error'
     })
@@ -114,10 +159,12 @@ const PORT = process.env.PORT || 3000
 const app = createApp(logger)
 
 import { connectDatabase } from './config/database.js'
+import { ensureBootstrapAdmin } from './services/adminBootstrap.service.js'
 
 async function startServer() {
   try {
     await connectDatabase(logger)
+    await ensureBootstrapAdmin(logger)
     app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`)
       logger.info(`Health check: http://localhost:${PORT}/api/health`)

@@ -6,6 +6,7 @@ import { Input } from '../ui/Input.jsx'
 import { Modal } from '../ui/Modal.jsx'
 import { RaritySlider } from '../ui/RaritySlider.jsx'
 import { StarSlider } from '../ui/StarSlider.jsx'
+import { API_BASE_URL } from '../../config/env.js'
 
 const MAX_IMAGE_FILE_BYTES = 5 * 1024 * 1024
 const MAX_DATA_URL_LENGTH = 7_200_000
@@ -87,7 +88,8 @@ export function AddCardModal({ open, accessToken, onClose, onCreated, editingCar
   const activeFieldId = `${formId}-active`
 
   const [name, setName] = useState('')
-  const [imageDataUrl, setImageDataUrl] = useState('')
+  const [imageFile, setImageFile] = useState(null) // Store actual file object
+  const [imagePreview, setImagePreview] = useState('') // For preview only
   const [fileName, setFileName] = useState('')
   const [totalHp, setTotalHp] = useState('')
   const [totalAttack, setTotalAttack] = useState('')
@@ -99,11 +101,12 @@ export function AddCardModal({ open, accessToken, onClose, onCreated, editingCar
   const [errors, setErrors] = useState(emptyErrors)
   const [submitting, setSubmitting] = useState(false)
 
-  const imagePreview = imageDataUrl
+  // imagePreview is now a local variable from state
 
   const reset = useCallback(() => {
     setName('')
-    setImageDataUrl('')
+    setImageFile(null)
+    setImagePreview('')
     setFileName('')
     setTotalHp('')
     setTotalAttack('')
@@ -130,10 +133,12 @@ export function AddCardModal({ open, accessToken, onClose, onCreated, editingCar
     hydrateKeyRef.current = key
     if (editingCard?._id) {
       setName(editingCard.name || '')
-      setImageDataUrl(editingCard.image || '')
-      const im = editingCard.image || ''
-      if (im.startsWith('data:')) setFileName('Current image')
-      else if (im) setFileName('Current image (URL)')
+      // Construct full URL for image preview when editing
+      const imageUrl = editingCard.image || ''
+      const fullImageUrl = imageUrl.startsWith('/') ? `${API_BASE_URL}${imageUrl}` : imageUrl
+      setImagePreview(fullImageUrl)
+      setImageFile(null) // No file for existing image
+      if (imageUrl.startsWith('/uploads/') || imageUrl.startsWith('http')) setFileName('Current image')
       else setFileName('')
       setTotalHp(editingCard.totalHp != null ? String(editingCard.totalHp) : '')
       setTotalAttack(editingCard.totalAttack != null ? String(editingCard.totalAttack) : '')
@@ -159,18 +164,15 @@ export function AddCardModal({ open, accessToken, onClose, onCreated, editingCar
       toast.error('Image is too large (max 5 MB).')
       return
     }
+    // Store the actual file
+    setImageFile(file)
+    setFileName(file.name)
+    setErrors((prev) => ({ ...prev, image: '' }))
+
+    // Create preview
     const reader = new FileReader()
     reader.onload = () => {
-      const data = String(reader.result || '')
-      if (data.length > MAX_DATA_URL_LENGTH) {
-        toast.error('Encoded image is too large.')
-        setImageDataUrl('')
-        setFileName('')
-        return
-      }
-      setImageDataUrl(data)
-      setFileName(file.name)
-      setErrors((prev) => ({ ...prev, image: '' }))
+      setImagePreview(String(reader.result || ''))
     }
     reader.onerror = () => toast.error('Could not read the file.')
     reader.readAsDataURL(file)
@@ -178,10 +180,10 @@ export function AddCardModal({ open, accessToken, onClose, onCreated, editingCar
 
   async function handleSubmit(e) {
     e.preventDefault()
-    const image = imageDataUrl
+    // Validate - use imagePreview for validation (non-empty check)
     const nextErrors = validate({
       name,
-      image,
+      image: imagePreview,
       totalHp,
       totalAttack,
       totalDefense,
@@ -195,31 +197,43 @@ export function AddCardModal({ open, accessToken, onClose, onCreated, editingCar
       return
     }
 
+    // For new cards, require a file upload
+    if (!isEdit && !imageFile) {
+      setErrors((prev) => ({ ...prev, image: 'Please upload an image file.' }))
+      toast.error('Please upload an image file.')
+      return
+    }
+
     setSubmitting(true)
     try {
-      const payload = {
-        name: name.trim(),
-        image,
-        totalHp: Number(totalHp),
-        totalAttack: Number(totalAttack),
-        totalDefense: Number(totalDefense),
-        totalMagic: Number(totalMagic),
-        stars: Number(stars),
-        rarity: Number(rarity),
-        active,
+      // Build FormData for file upload
+      const formData = new FormData()
+      formData.append('name', name.trim())
+      formData.append('totalHp', String(Number(totalHp)))
+      formData.append('totalAttack', String(Number(totalAttack)))
+      formData.append('totalDefense', String(Number(totalDefense)))
+      formData.append('totalMagic', String(Number(totalMagic)))
+      formData.append('stars', String(Number(stars)))
+      formData.append('rarity', String(Number(rarity)))
+      formData.append('active', String(active))
+
+      // Append image file if selected (new or replacement)
+      if (imageFile) {
+        formData.append('image', imageFile)
       }
+
       if (isEdit) {
-        await updateCard(accessToken, editingCard._id, payload)
+        await updateCard(accessToken, editingCard._id, formData)
         toast.success('Card updated')
       } else {
-        await createCard(accessToken, payload)
+        await createCard(accessToken, formData)
         toast.success('Card created')
       }
       onCreated?.()
       handleClose()
     } catch (err) {
       if (err.code === 'PAYLOAD_TOO_LARGE' || err.status === 413) {
-        toast.error(err.message || 'Image or payload is too large. Try under 5 MB.')
+        toast.error(err.message || 'Image or payload is too large. Try under 10 MB.')
       } else if (err.details?.fieldErrors) {
         toast.error('Check the form — server rejected some values.')
       } else {
