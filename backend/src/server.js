@@ -3,8 +3,12 @@ import cors from 'cors'
 import helmet from 'helmet'
 import morgan from 'morgan'
 import pino from 'pino'
+import { fileURLToPath } from 'url'
+import path from 'path'
 
 import { getCorsOrigins } from './config/env.js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 /* Import API routes */
 import { apiRouter } from './routes/index.js'
@@ -95,6 +99,7 @@ export function createApp(logger) {
   /*
    SERVE UPLOADED FILES (images) with CORS and CORP headers
   */
+  const uploadsPath = path.join(__dirname, '../uploads')
   app.use('/uploads', (req, res, next) => {
     // Allow cross-origin requests
     res.setHeader('Access-Control-Allow-Origin', '*')
@@ -102,7 +107,7 @@ export function createApp(logger) {
     // Allow cross-origin resource loading (required for images in cross-origin context)
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
     next()
-  }, express.static('uploads'))
+  }, express.static(uploadsPath))
 
   /*
    ROUTES
