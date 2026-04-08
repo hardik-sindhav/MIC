@@ -49,8 +49,9 @@ function checkEnvCredentials(email, password) {
     return null
   }
   const envEmail = env.ADMIN_EMAIL.toLowerCase().trim()
-  const envPassword = env.ADMIN_PASSWORD
-  if (email === envEmail && password === envPassword) {
+  const envPassword = env.ADMIN_PASSWORD.trim()
+  const normalizedPassword = String(password).trim()
+  if (email === envEmail && normalizedPassword === envPassword) {
     // Return a virtual admin object for token generation
     return {
       _id: 'env-admin',

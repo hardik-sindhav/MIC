@@ -29,7 +29,7 @@ const envSchema = z
       z.union([z.string().email(), z.literal('')]),
     ),
     ADMIN_PASSWORD: z.preprocess(
-      (v) => (v === undefined || v === null ? '' : String(v)),
+      (v) => (v === undefined || v === null ? '' : String(v).trim()),
       z.union([z.string().min(8).max(128), z.literal('')]),
     ),
 
