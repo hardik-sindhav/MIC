@@ -30,6 +30,10 @@ const userSchema = new mongoose.Schema(
     blockReason: { type: String, trim: true, default: '' },
     /** Whether the user has already claimed their welcome cards */
     hasClaimedWelcome: { type: Boolean, default: false },
+    /** UTC calendar date (YYYY-MM-DD) for rewardAdClaimCount */
+    rewardAdClaimDay: { type: String, trim: true, default: '' },
+    /** How many reward-ad pack claims used on rewardAdClaimDay */
+    rewardAdClaimCount: { type: Number, default: 0, min: 0 },
     /** User's card collection */
     inventory: {
       type: [

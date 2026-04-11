@@ -32,7 +32,8 @@ export async function getAppSettings() {
           star4: 10,
           star5: 5,
         }
-      }
+      },
+      rewardAdMaxPerDay: 10,
     }
   }
   return doc
@@ -53,6 +54,9 @@ export async function updateAppSettings(payload) {
     }
     if (payload.rewardPack) {
       doc.rewardPack = payload.rewardPack
+    }
+    if (payload.rewardAdMaxPerDay !== undefined && payload.rewardAdMaxPerDay !== null) {
+      doc.rewardAdMaxPerDay = payload.rewardAdMaxPerDay
     }
     await doc.save()
   } else {

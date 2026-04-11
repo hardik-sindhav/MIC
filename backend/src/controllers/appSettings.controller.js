@@ -29,7 +29,9 @@ const appSettingsSchema = z.object({
       star4: z.number().min(0).max(100).default(10),
       star5: z.number().min(0).max(100).default(5),
     })
-  }).optional()
+  }).optional(),
+  /** 0 = unlimited reward-ad claims per day */
+  rewardAdMaxPerDay: z.number().int().min(0).max(500).default(10),
 })
 
 /** Public fetch for mobile apps to check for updates and global notes */

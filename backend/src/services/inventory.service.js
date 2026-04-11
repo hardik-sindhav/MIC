@@ -5,6 +5,49 @@ import { activeCardFilter } from './cards.service.js'
 
 const DEFAULT_STAR_CHANCES = { star1: 40, star2: 30, star3: 15, star4: 10, star5: 5 }
 
+/** UTC calendar day key YYYY-MM-DD (same moment worldwide for limit reset). */
+export function getRewardAdUtcDay() {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function getRewardAdMaxPerDay(settings) {
+  const v = settings?.rewardAdMaxPerDay
+  if (v === undefined || v === null) return 10
+  const n = Number(v)
+  if (!Number.isFinite(n)) return 10
+  return Math.max(0, Math.min(500, Math.floor(n)))
+}
+
+function normalizeUserRewardAdDay(user, today) {
+  if (user.rewardAdClaimDay !== today) {
+    user.rewardAdClaimDay = today
+    user.rewardAdClaimCount = 0
+  }
+}
+
+function checkRewardAdAllowance(user, settings) {
+  const maxPerDay = getRewardAdMaxPerDay(settings)
+  if (maxPerDay === 0) return
+  const today = getRewardAdUtcDay()
+  normalizeUserRewardAdDay(user, today)
+  if (user.rewardAdClaimCount >= maxPerDay) {
+    const err = new Error('Daily reward ad limit reached')
+    err.code = 'REWARD_AD_DAILY_LIMIT'
+    err.maxPerDay = maxPerDay
+    err.usedToday = user.rewardAdClaimCount
+    err.dayUtc = today
+    throw err
+  }
+}
+
+function recordRewardAdClaim(user, settings) {
+  const maxPerDay = getRewardAdMaxPerDay(settings)
+  if (maxPerDay === 0) return
+  const today = getRewardAdUtcDay()
+  normalizeUserRewardAdDay(user, today)
+  user.rewardAdClaimCount += 1
+}
+
 function normalizeRewardConfig(raw) {
   return {
     totalCards: Math.max(0, Number(raw?.totalCards ?? 0)),
@@ -61,9 +104,16 @@ function pickRandomCardByStars(cardsByStars, chances) {
   return null
 }
 
+function ensureInventoryArray(user) {
+  if (!Array.isArray(user.inventory)) {
+    user.inventory = []
+  }
+}
+
 function recomputeUserCardStats(user, allCardsLean) {
-  user.cardsHeld = user.inventory.reduce((acc, item) => acc + item.count, 0)
-  user.rareCardsHeld = user.inventory.reduce((acc, item) => {
+  const inv = Array.isArray(user.inventory) ? user.inventory : []
+  user.cardsHeld = inv.reduce((acc, item) => acc + item.count, 0)
+  user.rareCardsHeld = inv.reduce((acc, item) => {
     const card = allCardsLean.find((c) => c._id.toString() === item.cardId.toString())
     if (card && card.stars >= 4) return acc + item.count
     return acc
@@ -77,6 +127,7 @@ function recomputeUserCardStats(user, allCardsLean) {
 export async function claimWelcomeReward(userId) {
   const user = await User.findById(userId)
   if (!user) throw new Error('User not found')
+  ensureInventoryArray(user)
   if (user.hasClaimedWelcome) throw new Error('Welcome reward already claimed')
 
   const settings = await getAppSettings()
@@ -144,14 +195,17 @@ export async function claimWelcomeReward(userId) {
 }
 
 /**
- * Reward pack: same draw rules as welcome/rewardPack settings, but only adds cards
- * the user does not already have in inventory. Each roll item returns status "new" or "already_owned".
+ * Reward pack (after rewarded ad): same draw rules as rewardPack settings; only adds new cards.
+ * Each card includes status "new" or "already_owned". Limited by AppSettings.rewardAdMaxPerDay (0 = unlimited).
  */
 export async function claimRewardPack(userId) {
   const user = await User.findById(userId)
   if (!user) throw new Error('User not found')
+  ensureInventoryArray(user)
 
   const settings = await getAppSettings()
+  checkRewardAdAllowance(user, settings)
+
   const config = normalizeRewardConfig(
     settings.rewardPack || {
       totalCards: 5,
@@ -177,7 +231,7 @@ export async function claimRewardPack(userId) {
   const fullById = await Card.find({ _id: { $in: idsForPopulate } }).lean()
   const fullMap = new Map(fullById.map((c) => [c._id.toString(), c]))
 
-  const items = []
+  const cards = []
   let newCount = 0
 
   for (const p of pickedCards) {
@@ -189,9 +243,9 @@ export async function claimRewardPack(userId) {
       user.inventory.push({ cardId: p._id, count: 1 })
       ownedIds.add(id)
       newCount += 1
-      items.push({ ...full, status: 'new' })
+      cards.push({ ...full, status: 'new' })
     } else {
-      items.push({ ...full, status: 'already_owned' })
+      cards.push({ ...full, status: 'already_owned' })
     }
   }
 
@@ -199,7 +253,28 @@ export async function claimRewardPack(userId) {
     recomputeUserCardStats(user, allCards)
   }
 
+  recordRewardAdClaim(user, settings)
   await user.save()
 
-  return { newCount, items }
+  return { newCount, cards }
+}
+
+/** For GET /inventory/reward-ad-status — does not mutate the user document. */
+export async function getRewardAdStatusForUser(userId) {
+  const user = await User.findById(userId).select('rewardAdClaimDay rewardAdClaimCount').lean()
+  if (!user) throw new Error('User not found')
+  const settings = await getAppSettings()
+  const maxPerDay = getRewardAdMaxPerDay(settings)
+  const today = getRewardAdUtcDay()
+  const usedToday =
+    user.rewardAdClaimDay === today ? Math.max(0, Number(user.rewardAdClaimCount || 0)) : 0
+  const unlimited = maxPerDay === 0
+  return {
+    maxPerDay,
+    usedToday,
+    remaining: unlimited ? null : Math.max(0, maxPerDay - usedToday),
+    unlimited,
+    dayUtc: today,
+    canClaim: unlimited || usedToday < maxPerDay,
+  }
 }

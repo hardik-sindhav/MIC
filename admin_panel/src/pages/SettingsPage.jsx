@@ -17,13 +17,13 @@ import { Input } from '../components/ui/Input.jsx'
 import { Loader } from '../components/ui/Loader.jsx'
 import { Textarea } from '../components/ui/Textarea.jsx'
 import { useAuth } from '../hooks/useAuth.js'
-import { GripVertical, Plus, Trash2, Save, ArrowUp, ArrowDown, Smartphone, Megaphone, Bell, ShieldAlert, Gift, Star } from 'lucide-react'
+import { GripVertical, Plus, Trash2, Save, ArrowUp, ArrowDown, Smartphone, Megaphone, Bell, ShieldAlert, Gift, Star, Package } from 'lucide-react'
 
 export function SettingsPage() {
   const { accessToken } = useAuth()
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [activeTab, setActiveTab] = useState('updates') // 'updates' | 'ads' | 'notifications' | 'rewards'
+  const [activeTab, setActiveTab] = useState('updates') // 'updates' | 'ads' | 'notifications' | 'welcome-reward' | 'reward-pack'
 
   // App Settings State
   const [appSettings, setAppSettings] = useState({
@@ -54,7 +54,9 @@ export function SettingsPage() {
         star4: 10,
         star5: 5,
       }
-    }
+    },
+    /** Max rewarded-ad pack claims per user per UTC day; 0 = unlimited */
+    rewardAdMaxPerDay: 10,
   })
 
   // Custom Ads State
@@ -79,6 +81,10 @@ export function SettingsPage() {
           ...settings,
           welcomeReward: { ...prev.welcomeReward, ...settings.welcomeReward },
           rewardPack: { ...prev.rewardPack, ...settings.rewardPack },
+          rewardAdMaxPerDay:
+            settings.rewardAdMaxPerDay !== undefined && settings.rewardAdMaxPerDay !== null
+              ? settings.rewardAdMaxPerDay
+              : prev.rewardAdMaxPerDay,
         }))
       }
       if (ads) setCustomAds(ads)
@@ -111,6 +117,11 @@ export function SettingsPage() {
         totalCards: Number(appSettings.rewardPack?.totalCards || 0),
         bonusCards: Number(appSettings.rewardPack?.bonusCards || 0),
       },
+      rewardAdMaxPerDay: (() => {
+        const r = Number(appSettings.rewardAdMaxPerDay)
+        const n = Number.isFinite(r) ? r : 10
+        return Math.max(0, Math.min(500, Math.floor(n)))
+      })(),
     }
 
     try {
@@ -255,15 +266,26 @@ export function SettingsPage() {
           Push Notifications
         </button>
         <button
-          onClick={() => setActiveTab('rewards')}
+          onClick={() => setActiveTab('welcome-reward')}
           className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-small font-semibold transition-all ${
-            activeTab === 'rewards'
+            activeTab === 'welcome-reward'
               ? 'bg-accent text-accent-foreground shadow-glow'
               : 'text-foreground-muted hover:bg-surface-muted hover:text-foreground'
           }`}
         >
           <Gift className="h-4 w-4" />
-          Welcome Rewards
+          Welcome bonus
+        </button>
+        <button
+          onClick={() => setActiveTab('reward-pack')}
+          className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-small font-semibold transition-all ${
+            activeTab === 'reward-pack'
+              ? 'bg-accent text-accent-foreground shadow-glow'
+              : 'text-foreground-muted hover:bg-surface-muted hover:text-foreground'
+          }`}
+        >
+          <Package className="h-4 w-4" />
+          Reward pack
         </button>
       </div>
 
@@ -390,242 +412,283 @@ export function SettingsPage() {
               </form>
             </Card>
           </div>
-        ) : activeTab === 'rewards' ? (
+        ) : activeTab === 'welcome-reward' ? (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-8">
             <form onSubmit={handleUpdateSettings} className="space-y-8">
-            <Card accentTop>
+              <Card accentTop>
                 <div className="space-y-8">
-                <div>
-                  <h3 className="font-display text-2xl font-bold">New User Welcome Package</h3>
-                  <p className="mt-1 text-body text-foreground-muted">
-                    Configure the cards a user receives when they first join the game.
-                  </p>
-                </div>
-
-                <div className="grid gap-8 lg:grid-cols-2">
-                  <div className="space-y-6">
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <Input 
-                        label="Base Cards" 
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={appSettings.welcomeReward?.totalCards} 
-                        onChange={(e) => {
-                          const val = e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0)
-                          setAppSettings({ 
-                            ...appSettings, 
-                            welcomeReward: { ...appSettings.welcomeReward, totalCards: val } 
-                          })
-                        }} 
-                        hint="Random cards from pool"
-                        required 
-                      />
-                      <Input 
-                        label="Bonus Cards" 
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={appSettings.welcomeReward?.bonusCards} 
-                        onChange={(e) => {
-                          const val = e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0)
-                          setAppSettings({ 
-                            ...appSettings, 
-                            welcomeReward: { ...appSettings.welcomeReward, bonusCards: val } 
-                          })
-                        }} 
-                        hint="Extra random cards"
-                      />
-                    </div>
-
-                    <div className="rounded-2xl border border-border bg-surface-muted/20 p-6">
-                      <h4 className="text-small font-bold uppercase tracking-wider mb-4 flex items-center gap-2">
-                        <Star className="h-4 w-4 text-accent" />
-                        Star Probabilities (%)
-                      </h4>
-                      <div className="space-y-4">
-                        {[1, 2, 3, 4, 5].map(star => (
-                          <div key={star} className="flex items-center gap-4">
-                            <span className="w-12 text-xs font-mono font-bold">{star} Star</span>
-                            <input 
-                              type="range"
-                              min="0"
-                              max="100"
-                              value={appSettings.welcomeReward?.starChances?.[`star${star}`] || 0}
-                              onChange={(e) => setAppSettings({
-                                ...appSettings,
-                                welcomeReward: {
-                                  ...appSettings.welcomeReward,
-                                  starChances: {
-                                    ...appSettings.welcomeReward.starChances,
-                                    [`star${star}`]: parseInt(e.target.value) || 0
-                                  }
-                                }
-                              })}
-                              className="flex-1 accent-accent"
-                            />
-                            <span className="w-12 text-right text-xs font-bold">{appSettings.welcomeReward?.starChances?.[`star${star}`] || 0}%</span>
-                          </div>
-                        ))}
-                        <div className="pt-4 border-t border-border flex justify-between items-center">
-                          <span className="text-[10px] uppercase font-bold text-foreground-subtle">Total Probability</span>
-                          <span className={`text-xs font-bold ${
-                            Object.values(appSettings.welcomeReward?.starChances || {}).reduce((a, b) => a + b, 0) === 100 
-                              ? 'text-emerald-500' 
-                              : 'text-amber-500'
-                          }`}>
-                            {Object.values(appSettings.welcomeReward?.starChances || {}).reduce((a, b) => a + b, 0)}%
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                  <div>
+                    <h3 className="font-display text-2xl font-bold">New user welcome package</h3>
+                    <p className="mt-1 text-body text-foreground-muted">
+                      Configure base and bonus random card draws using the star probabilities below.
+                    </p>
                   </div>
 
-                  <div className="space-y-6">
-                    <div className="rounded-3xl bg-accent/5 border border-accent/10 p-6">
-                      <div className="flex items-center gap-3 mb-3 text-accent">
-                        <Gift className="h-5 w-5" />
-                        <h4 className="font-bold">Welcome Flow</h4>
+                  <div className="grid gap-8 lg:grid-cols-2">
+                    <div className="space-y-6">
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <Input
+                          label="Base Cards"
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={appSettings.welcomeReward?.totalCards}
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0)
+                            setAppSettings({
+                              ...appSettings,
+                              welcomeReward: { ...appSettings.welcomeReward, totalCards: val },
+                            })
+                          }}
+                          hint="Random cards from pool"
+                          required
+                        />
+                        <Input
+                          label="Bonus Cards"
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={appSettings.welcomeReward?.bonusCards}
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0)
+                            setAppSettings({
+                              ...appSettings,
+                              welcomeReward: { ...appSettings.welcomeReward, bonusCards: val },
+                            })
+                          }}
+                          hint="Extra random draws"
+                        />
                       </div>
-                      <p className="text-small text-foreground-muted leading-relaxed">
-                        When a new user registers or calls the claim API, the system will:
-                      </p>
-                      <ul className="mt-4 space-y-2 text-small text-foreground-subtle list-disc list-inside">
-                        <li>Calculate total cards: { (appSettings.welcomeReward?.totalCards || 0) + (appSettings.welcomeReward?.bonusCards || 0) }</li>
-                        <li>Randomly pick cards based on the star chances on the left.</li>
-                        <li>Add all picked cards to the user's inventory.</li>
-                        <li>Mark the user as "Claimed" to prevent multiple claims.</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-                </div>
-            </Card>
 
-            <Card>
-                <div className="space-y-8">
-                <div>
-                  <h3 className="font-display text-2xl font-bold">Reward pack API</h3>
-                  <p className="mt-1 text-body text-foreground-muted">
-                    Same rules as welcome (base + bonus random draws, star odds). Users call{' '}
-                    <code className="rounded bg-surface-muted px-1.5 py-0.5 font-mono text-[11px]">POST /api/inventory/claim-reward-pack</code>
-                    . Only cards they do not already own are added; each item returns{' '}
-                    <code className="rounded bg-surface-muted px-1.5 py-0.5 font-mono text-[11px]">status: &quot;new&quot;</code> or{' '}
-                    <code className="rounded bg-surface-muted px-1.5 py-0.5 font-mono text-[11px]">already_owned</code>.
-                  </p>
-                </div>
-
-                <div className="grid gap-8 lg:grid-cols-2">
-                  <div className="space-y-6">
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <Input
-                        label="Base Cards"
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={appSettings.rewardPack?.totalCards}
-                        onChange={(e) => {
-                          const val = e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0)
-                          setAppSettings({
-                            ...appSettings,
-                            rewardPack: { ...appSettings.rewardPack, totalCards: val },
-                          })
-                        }}
-                        hint="Random cards from pool"
-                      />
-                      <Input
-                        label="Bonus Cards"
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={appSettings.rewardPack?.bonusCards}
-                        onChange={(e) => {
-                          const val = e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0)
-                          setAppSettings({
-                            ...appSettings,
-                            rewardPack: { ...appSettings.rewardPack, bonusCards: val },
-                          })
-                        }}
-                        hint="Extra random draws"
-                      />
-                    </div>
-
-                    <div className="rounded-2xl border border-border bg-surface-muted/20 p-6">
-                      <h4 className="text-small font-bold uppercase tracking-wider mb-4 flex items-center gap-2">
-                        <Star className="h-4 w-4 text-accent" />
-                        Star probabilities (%)
-                      </h4>
-                      <div className="space-y-4">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <div key={`rp-star-${star}`} className="flex items-center gap-4">
-                            <span className="w-12 text-xs font-mono font-bold">{star} Star</span>
-                            <input
-                              type="range"
-                              min="0"
-                              max="100"
-                              value={appSettings.rewardPack?.starChances?.[`star${star}`] || 0}
-                              onChange={(e) =>
-                                setAppSettings({
-                                  ...appSettings,
-                                  rewardPack: {
-                                    ...appSettings.rewardPack,
-                                    starChances: {
-                                      ...appSettings.rewardPack.starChances,
-                                      [`star${star}`]: parseInt(e.target.value) || 0,
+                      <div className="rounded-2xl border border-border bg-surface-muted/20 p-6">
+                        <h4 className="text-small font-bold uppercase tracking-wider mb-4 flex items-center gap-2">
+                          <Star className="h-4 w-4 text-accent" />
+                          Star probabilities (%)
+                        </h4>
+                        <div className="space-y-4">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <div key={star} className="flex items-center gap-4">
+                              <span className="w-12 text-xs font-mono font-bold">{star} Star</span>
+                              <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                value={appSettings.welcomeReward?.starChances?.[`star${star}`] || 0}
+                                onChange={(e) =>
+                                  setAppSettings({
+                                    ...appSettings,
+                                    welcomeReward: {
+                                      ...appSettings.welcomeReward,
+                                      starChances: {
+                                        ...appSettings.welcomeReward.starChances,
+                                        [`star${star}`]: parseInt(e.target.value) || 0,
+                                      },
                                     },
-                                  },
-                                })
-                              }
-                              className="flex-1 accent-accent"
-                            />
-                            <span className="w-12 text-right text-xs font-bold">
-                              {appSettings.rewardPack?.starChances?.[`star${star}`] || 0}%
+                                  })
+                                }
+                                className="flex-1 accent-accent"
+                              />
+                              <span className="w-12 text-right text-xs font-bold">
+                                {appSettings.welcomeReward?.starChances?.[`star${star}`] || 0}%
+                              </span>
+                            </div>
+                          ))}
+                          <div className="pt-4 border-t border-border flex justify-between items-center">
+                            <span className="text-[10px] uppercase font-bold text-foreground-subtle">Total probability</span>
+                            <span
+                              className={`text-xs font-bold ${
+                                Object.values(appSettings.welcomeReward?.starChances || {}).reduce((a, b) => a + b, 0) === 100
+                                  ? 'text-emerald-500'
+                                  : 'text-amber-500'
+                              }`}
+                            >
+                              {Object.values(appSettings.welcomeReward?.starChances || {}).reduce((a, b) => a + b, 0)}%
                             </span>
                           </div>
-                        ))}
-                        <div className="pt-4 border-t border-border flex justify-between items-center">
-                          <span className="text-[10px] uppercase font-bold text-foreground-subtle">Total probability</span>
-                          <span
-                            className={`text-xs font-bold ${
-                              Object.values(appSettings.rewardPack?.starChances || {}).reduce((a, b) => a + b, 0) === 100
-                                ? 'text-emerald-500'
-                                : 'text-amber-500'
-                            }`}
-                          >
-                            {Object.values(appSettings.rewardPack?.starChances || {}).reduce((a, b) => a + b, 0)}%
-                          </span>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="rounded-3xl bg-surface-muted/20 border border-border p-6">
-                    <h4 className="font-bold mb-2">Response shape</h4>
-                    <p className="text-small text-foreground-muted mb-3">
-                      <code className="font-mono text-[11px]">newCount</code> is how many cards were actually added.
+                    <div className="space-y-6">
+                      <div className="rounded-3xl bg-accent/5 border border-accent/10 p-6">
+                        <div className="flex items-center gap-3 mb-3 text-accent">
+                          <Gift className="h-5 w-5" />
+                          <h4 className="font-bold">How it works</h4>
+                        </div>
+                        <p className="text-small text-foreground-muted leading-relaxed">
+                          Each new player gets a single welcome claim in the app.
+                        </p>
+                        <ul className="mt-4 space-y-2 text-small text-foreground-subtle list-disc list-inside">
+                          <li>
+                            Draws{' '}
+                            {(appSettings.welcomeReward?.totalCards || 0) + (appSettings.welcomeReward?.bonusCards || 0)} random
+                            cards using the star odds you set.
+                          </li>
+                          <li>If the same card appears more than once in that claim, quantities are merged in their collection.</li>
+                          <li>After that, welcome cannot be claimed again for that account.</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              <div className="flex justify-end">
+                <Button type="submit" className="w-full sm:w-auto px-10" loading={submitting}>
+                  <Save className="h-4 w-4" />
+                  Save welcome settings
+                </Button>
+              </div>
+            </form>
+          </div>
+        ) : activeTab === 'reward-pack' ? (
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-8">
+            <form onSubmit={handleUpdateSettings} className="space-y-8">
+              <Card accentTop>
+                <div className="space-y-8">
+                  <div>
+                    <h3 className="font-display text-2xl font-bold">Reward pack</h3>
+                    <p className="mt-1 text-body text-foreground-muted">
+                      Same idea as the welcome package: base and bonus random draws using the star probabilities below. After each
+                      rewarded ad, the player gets one pack open; opens are capped per UTC calendar day (resets at midnight UTC).
+                      Cards they already own are not added again to their collection.
                     </p>
-                    <pre className="text-[11px] font-mono overflow-x-auto rounded-xl bg-surface p-4 border border-border">
-{`{
-  "success": true,
-  "newCount": 2,
-  "items": [
-    { "_id": "...", "name": "...", "status": "new" },
-    { "_id": "...", "name": "...", "status": "already_owned" }
-  ]
-}`}
-                    </pre>
+                  </div>
+
+                  <div className="grid gap-8 lg:grid-cols-2">
+                    <div className="space-y-6">
+                      <Input
+                        label="Max reward ads per day (per user)"
+                        type="number"
+                        min="0"
+                        max="500"
+                        value={appSettings.rewardAdMaxPerDay}
+                        onChange={(e) => {
+                          const raw = e.target.value
+                          const val =
+                            raw === '' ? '' : Math.max(0, Math.min(500, parseInt(raw, 10) || 0))
+                          setAppSettings({ ...appSettings, rewardAdMaxPerDay: val })
+                        }}
+                        hint="0 = unlimited. Limit resets every UTC day."
+                      />
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <Input
+                          label="Base Cards"
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={appSettings.rewardPack?.totalCards}
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0)
+                            setAppSettings({
+                              ...appSettings,
+                              rewardPack: { ...appSettings.rewardPack, totalCards: val },
+                            })
+                          }}
+                          hint="Random cards from pool"
+                        />
+                        <Input
+                          label="Bonus Cards"
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={appSettings.rewardPack?.bonusCards}
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0)
+                            setAppSettings({
+                              ...appSettings,
+                              rewardPack: { ...appSettings.rewardPack, bonusCards: val },
+                            })
+                          }}
+                          hint="Extra random draws"
+                        />
+                      </div>
+
+                      <div className="rounded-2xl border border-border bg-surface-muted/20 p-6">
+                        <h4 className="text-small font-bold uppercase tracking-wider mb-4 flex items-center gap-2">
+                          <Star className="h-4 w-4 text-accent" />
+                          Star probabilities (%)
+                        </h4>
+                        <div className="space-y-4">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <div key={`rp-star-${star}`} className="flex items-center gap-4">
+                              <span className="w-12 text-xs font-mono font-bold">{star} Star</span>
+                              <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                value={appSettings.rewardPack?.starChances?.[`star${star}`] || 0}
+                                onChange={(e) =>
+                                  setAppSettings({
+                                    ...appSettings,
+                                    rewardPack: {
+                                      ...appSettings.rewardPack,
+                                      starChances: {
+                                        ...appSettings.rewardPack.starChances,
+                                        [`star${star}`]: parseInt(e.target.value) || 0,
+                                      },
+                                    },
+                                  })
+                                }
+                                className="flex-1 accent-accent"
+                              />
+                              <span className="w-12 text-right text-xs font-bold">
+                                {appSettings.rewardPack?.starChances?.[`star${star}`] || 0}%
+                              </span>
+                            </div>
+                          ))}
+                          <div className="pt-4 border-t border-border flex justify-between items-center">
+                            <span className="text-[10px] uppercase font-bold text-foreground-subtle">Total probability</span>
+                            <span
+                              className={`text-xs font-bold ${
+                                Object.values(appSettings.rewardPack?.starChances || {}).reduce((a, b) => a + b, 0) === 100
+                                  ? 'text-emerald-500'
+                                  : 'text-amber-500'
+                              }`}
+                            >
+                              {Object.values(appSettings.rewardPack?.starChances || {}).reduce((a, b) => a + b, 0)}%
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      <div className="rounded-3xl bg-accent/5 border border-accent/10 p-6">
+                        <div className="flex items-center gap-3 mb-3 text-accent">
+                          <Package className="h-5 w-5" />
+                          <h4 className="font-bold">How it works</h4>
+                        </div>
+                        <p className="text-small text-foreground-muted leading-relaxed">
+                          Each pack open uses these settings, similar to the welcome draw:
+                        </p>
+                        <ul className="mt-4 space-y-2 text-small text-foreground-subtle list-disc list-inside">
+                          <li>
+                            Total random draws this pack:{' '}
+                            {(appSettings.rewardPack?.totalCards || 0) + (appSettings.rewardPack?.bonusCards || 0)}.
+                          </li>
+                          <li>
+                            Daily cap:{' '}
+                            {appSettings.rewardAdMaxPerDay === 0 || appSettings.rewardAdMaxPerDay === ''
+                              ? 'unlimited'
+                              : `${appSettings.rewardAdMaxPerDay} rewarded-ad pack claims per user each UTC calendar day (resets at midnight UTC).`}
+                          </li>
+                          <li>New cards are added to the player&apos;s collection; rolls for cards they already have do not increase quantity.</li>
+                          <li>The app can still show every card in the pack animation so players see the full reveal.</li>
+                        </ul>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                </div>
-            </Card>
+              </Card>
 
-                <div className="flex justify-end">
-                  <Button type="submit" className="w-full sm:w-auto px-10" loading={submitting}>
-                    <Save className="h-4 w-4" />
-                    Save reward settings
-                  </Button>
-                </div>
-              </form>
+              <div className="flex justify-end">
+                <Button type="submit" className="w-full sm:w-auto px-10" loading={submitting}>
+                  <Save className="h-4 w-4" />
+                  Save reward pack settings
+                </Button>
+              </div>
+            </form>
           </div>
         ) : (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">

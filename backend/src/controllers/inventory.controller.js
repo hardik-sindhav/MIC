@@ -7,7 +7,7 @@ export async function postClaimWelcome(req, res, next) {
     return res.status(200).json({
       success: true,
       message: 'Welcome reward claimed successfully',
-      items: cards
+      cards,
     })
   } catch (e) {
     if (e.message === 'Welcome reward already claimed') {
@@ -17,16 +17,37 @@ export async function postClaimWelcome(req, res, next) {
   }
 }
 
-/** Same admin-configured odds as welcome, but only adds cards not yet in inventory; each item has status new | already_owned */
+/**
+ * After a rewarded ad: grants a pack. Capped by AppSettings.rewardAdMaxPerDay (UTC day); 0 = unlimited.
+ * Skips global /api rate limit (see rateLimiters).
+ */
 export async function postClaimRewardPack(req, res, next) {
   try {
-    const { newCount, items } = await inventoryService.claimRewardPack(req.auth.sub)
+    const { newCount, cards } = await inventoryService.claimRewardPack(req.auth.sub)
     return res.status(200).json({
       success: true,
       message: 'Reward pack processed',
       newCount,
-      items,
+      cards,
     })
+  } catch (e) {
+    if (e.code === 'REWARD_AD_DAILY_LIMIT') {
+      return res.status(403).json({
+        error: e.message,
+        code: e.code,
+        maxPerDay: e.maxPerDay,
+        usedToday: e.usedToday,
+        dayUtc: e.dayUtc,
+      })
+    }
+    next(e)
+  }
+}
+
+export async function getRewardAdStatus(req, res, next) {
+  try {
+    const status = await inventoryService.getRewardAdStatusForUser(req.auth.sub)
+    return res.status(200).json(status)
   } catch (e) {
     next(e)
   }
@@ -44,14 +65,14 @@ export async function getUserInventory(req, res, next) {
     if (!user) return res.status(404).json({ error: 'User not found' })
 
     const inventory = Array.isArray(user.inventory) ? user.inventory : []
-    const items = inventory
+    const cards = inventory
       .filter((item) => item?.cardId != null)
       .map((item) => ({
         ...item.cardId,
         count: item.count ?? 1,
       }))
 
-    return res.status(200).json({ items })
+    return res.status(200).json({ cards })
   } catch (e) {
     next(e)
   }

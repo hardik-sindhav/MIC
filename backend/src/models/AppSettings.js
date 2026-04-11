@@ -23,7 +23,7 @@ const appSettingsSchema = new mongoose.Schema(
         star5: { type: Number, default: 5 },
       }
     },
-    /** Same shape as welcomeReward — used by POST /inventory/claim-reward-pack (only adds cards user does not own yet) */
+    /** Same shape as welcomeReward — used by reward pack claims (only adds cards user does not own yet) */
     rewardPack: {
       totalCards: { type: Number, default: 5 },
       bonusCards: { type: Number, default: 0 },
@@ -36,6 +36,11 @@ const appSettingsSchema = new mongoose.Schema(
         star5: { type: Number, default: 5 },
       }
     },
+    /**
+     * Max rewarded-ad pack claims per user per UTC calendar day (claim-reward-pack).
+     * 0 = no daily cap (unlimited).
+     */
+    rewardAdMaxPerDay: { type: Number, default: 10, min: 0, max: 500 },
   },
   { timestamps: true },
 )
