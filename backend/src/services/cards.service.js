@@ -1,3 +1,5 @@
+import fs from 'fs'
+import path from 'path'
 import { Card } from '../models/Card.js'
 
 /** Active catalog rows (not soft-deleted) */
@@ -98,6 +100,27 @@ export async function softDeleteCardById(id) {
     { new: true },
   )
   return card
+}
+
+export async function permanentDeleteCardById(id) {
+  const card = await Card.findById(id)
+  if (!card) return false
+
+  // Delete image file if it exists
+  if (card.image && card.image.startsWith('/uploads/')) {
+    const filename = card.image.replace('/uploads/', '')
+    const fullPath = path.join(process.cwd(), 'uploads', filename)
+    try {
+      if (fs.existsSync(fullPath)) {
+        fs.unlinkSync(fullPath)
+      }
+    } catch (err) {
+      console.warn('Could not delete image file during permanent delete:', fullPath, err.message)
+    }
+  }
+
+  await Card.deleteOne({ _id: id })
+  return true
 }
 
 export async function restoreCardById(id) {

@@ -8,6 +8,7 @@ import {
   listDeletedCards,
   restoreCardById,
   softDeleteCardById,
+  permanentDeleteCardById,
   updateCardById,
 } from '../services/cards.service.js'
 import { Card } from '../models/Card.js'
@@ -173,6 +174,22 @@ export async function deleteCard(req, res, next) {
       archivedAt: archived.deletedAt,
       card: archived.toObject(),
     })
+  } catch (e) {
+    next(e)
+  }
+}
+
+export async function permanentDeleteCard(req, res, next) {
+  try {
+    const { id } = req.params
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ error: 'Invalid card id' })
+    }
+    const success = await permanentDeleteCardById(id)
+    if (!success) {
+      return res.status(404).json({ error: 'Card not found' })
+    }
+    return res.status(200).json({ ok: true })
   } catch (e) {
     next(e)
   }

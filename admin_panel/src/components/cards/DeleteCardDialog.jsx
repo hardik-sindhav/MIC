@@ -6,7 +6,17 @@ import { API_BASE_URL } from '../../config/env.js'
 /**
  * Archive confirmation — matches main Modal shell / catalog styling.
  */
-export function DeleteCardDialog({ open, card, onClose, onConfirm, loading }) {
+export function DeleteCardDialog({ 
+  open, 
+  card, 
+  onClose, 
+  onConfirm, 
+  loading,
+  title = "Remove from catalog?",
+  description = "The card stays in Recently deleted until you restore or replace it. You can bring it back in one tap.",
+  confirmLabel = "Archive card",
+  variant = "primary"
+}) {
   const onCloseRef = useRef(onClose)
   const onConfirmRef = useRef(onConfirm)
   onCloseRef.current = onClose
@@ -53,18 +63,17 @@ export function DeleteCardDialog({ open, card, onClose, onConfirm, loading }) {
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-border px-5 py-4 sm:px-6">
           <div className="min-w-0 pt-0.5">
             <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-muted/60 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-foreground-muted dark:bg-surface-muted/30">
-              <Archive className="h-3.5 w-3.5 text-accent" strokeWidth={2} aria-hidden />
-              Archive
+              <Archive className={`h-3.5 w-3.5 ${variant === 'danger' ? 'text-error' : 'text-accent'}`} strokeWidth={2} aria-hidden />
+              {variant === 'danger' ? 'Permanent Delete' : 'Archive'}
             </div>
             <h2
               id="archive-dialog-title"
               className="mt-3 font-display text-xl font-semibold tracking-tight text-foreground"
             >
-              Remove from catalog?
+              {title}
             </h2>
             <p id="archive-dialog-desc" className="mt-1 text-small text-foreground-muted">
-              The card stays in <span className="font-medium text-foreground">Recently deleted</span> until you
-              restore or replace it. You can bring it back in one tap.
+              {description}
             </p>
           </div>
           <button
@@ -94,8 +103,9 @@ export function DeleteCardDialog({ open, card, onClose, onConfirm, loading }) {
                 {name}
               </p>
               <p className="mt-2 text-[13px] leading-relaxed text-foreground-muted">
-                It will disappear from the main table above and appear under{' '}
-                <span className="text-foreground">Recently deleted</span> with a timestamp.
+                {variant === 'danger' 
+                  ? "This card will be permanently removed from the database and the server's storage."
+                  : "It will disappear from the main table above and appear under Recently deleted with a timestamp."}
               </p>
             </div>
           </div>
@@ -114,13 +124,13 @@ export function DeleteCardDialog({ open, card, onClose, onConfirm, loading }) {
             </Button>
             <Button
               type="button"
-              variant="primary"
-              className="w-full sm:w-auto"
+              variant={variant === 'danger' ? 'danger' : 'primary'}
+              className={`w-full sm:w-auto ${variant === 'danger' ? 'bg-red-600 hover:bg-red-700 text-white' : ''}`}
               loading={loading}
               disabled={loading}
               onClick={() => onConfirmRef.current()}
             >
-              Archive card
+              {confirmLabel}
             </Button>
           </div>
         </footer>

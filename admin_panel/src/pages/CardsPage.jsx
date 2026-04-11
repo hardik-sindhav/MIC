@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ChevronDown, ChevronRight, Pencil, RotateCcw, Star, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { deleteCard, fetchCards, fetchDeletedCards, restoreCardApi } from '../api/cards.js'
+import { deleteCard, fetchCards, fetchDeletedCards, restoreCardApi, permanentDeleteCardApi } from '../api/cards.js'
 import { AddCardModal } from '../components/cards/AddCardModal.jsx'
 import { DeleteCardDialog } from '../components/cards/DeleteCardDialog.jsx'
 import { SectionHeader } from '../components/layout/SectionHeader.jsx'
@@ -51,6 +51,8 @@ export function CardsPage() {
   const [deletedItems, setDeletedItems] = useState([])
   const [trashExpanded, setTrashExpanded] = useState(true)
   const [restoreId, setRestoreId] = useState(null)
+  const [permanentDeleteTarget, setPermanentDeleteTarget] = useState(null)
+  const [permanentDeleteLoading, setPermanentDeleteLoading] = useState(false)
 
   const closeModal = useCallback(() => {
     setModalOpen(false)
@@ -133,6 +135,21 @@ export function CardsPage() {
     }
   }
 
+  async function handlePermanentDelete() {
+    if (!permanentDeleteTarget?._id || !accessToken) return
+    setPermanentDeleteLoading(true)
+    try {
+      await permanentDeleteCardApi(accessToken, permanentDeleteTarget._id)
+      toast.success('Card permanently deleted.')
+      setPermanentDeleteTarget(null)
+      await loadDeleted()
+    } catch (e) {
+      toast.error(e.message || 'Could not delete card permanently.')
+    } finally {
+      setPermanentDeleteLoading(false)
+    }
+  }
+
   return (
     <>
       {accessToken ? (
@@ -152,6 +169,19 @@ export function CardsPage() {
             }}
             onConfirm={confirmArchive}
             loading={deleteLoading}
+          />
+          <DeleteCardDialog
+            open={Boolean(permanentDeleteTarget)}
+            card={permanentDeleteTarget}
+            onClose={() => {
+              if (!permanentDeleteLoading) setPermanentDeleteTarget(null)
+            }}
+            onConfirm={handlePermanentDelete}
+            loading={permanentDeleteLoading}
+            title="Permanently delete card?"
+            description="This action cannot be undone. The card and its image will be removed from the server forever."
+            confirmLabel="Delete forever"
+            variant="danger"
           />
         </>
       ) : null}
@@ -453,7 +483,7 @@ export function CardsPage() {
                           </div>
                         </td>
                         <td className="px-4 py-3.5 pr-5 text-right align-middle sm:pr-6">
-                          <div className="inline-flex justify-end">
+                          <div className="inline-flex justify-end gap-2">
                             <button
                               type="button"
                               disabled={restoring}
@@ -474,6 +504,15 @@ export function CardsPage() {
                                   Restore
                                 </>
                               )}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={restoring}
+                              onClick={() => setPermanentDeleteTarget(card)}
+                              className="inline-flex h-[52px] w-[52px] items-center justify-center rounded-xl border border-border bg-surface text-foreground-muted transition-colors hover:border-red-500/35 hover:bg-red-500/10 hover:text-error disabled:opacity-50 dark:bg-surface-elevated"
+                              aria-label={`Permanently delete ${card.name}`}
+                            >
+                              <Trash2 className="h-5 w-5" strokeWidth={1.75} />
                             </button>
                           </div>
                         </td>

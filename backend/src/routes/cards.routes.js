@@ -7,6 +7,7 @@ import {
   patchCard,
   postCard,
   restoreCard,
+  permanentDeleteCard,
 } from '../controllers/cards.controller.js'
 import { requireAuth } from '../middleware/authenticate.js'
 import { upload } from '../middleware/upload.js'
@@ -20,5 +21,6 @@ r.post('/', requireAuth, upload.single('image'), postCard)
 r.post('/:id/restore', requireAuth, restoreCard)
 r.patch('/:id', requireAuth, upload.single('image'), patchCard)
 r.delete('/:id', requireAuth, deleteCard)
+r.delete('/:id/permanent', requireAuth, permanentDeleteCard)
 
 export const cardsRoutes = r
