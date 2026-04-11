@@ -43,10 +43,13 @@ export async function getUserInventory(req, res, next) {
     
     if (!user) return res.status(404).json({ error: 'User not found' })
 
-    const items = user.inventory.map(item => ({
-      ...item.cardId,
-      count: item.count
-    }))
+    const inventory = Array.isArray(user.inventory) ? user.inventory : []
+    const items = inventory
+      .filter((item) => item?.cardId != null)
+      .map((item) => ({
+        ...item.cardId,
+        count: item.count ?? 1,
+      }))
 
     return res.status(200).json({ items })
   } catch (e) {

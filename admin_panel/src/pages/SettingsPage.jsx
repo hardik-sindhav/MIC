@@ -10,7 +10,6 @@ import {
   reorderCustomAds,
   sendGlobalNotification,
 } from '../api/settings.js'
-import { fetchCards } from '../api/cards.js'
 import { SectionHeader } from '../components/layout/SectionHeader.jsx'
 import { Button } from '../components/ui/Button.jsx'
 import { Card } from '../components/ui/Card.jsx'
@@ -18,7 +17,6 @@ import { Input } from '../components/ui/Input.jsx'
 import { Loader } from '../components/ui/Loader.jsx'
 import { Textarea } from '../components/ui/Textarea.jsx'
 import { useAuth } from '../hooks/useAuth.js'
-import { API_BASE_URL } from '../config/env.js'
 import { GripVertical, Plus, Trash2, Save, ArrowUp, ArrowDown, Smartphone, Megaphone, Bell, ShieldAlert, Gift, Star } from 'lucide-react'
 
 export function SettingsPage() {
@@ -63,9 +61,6 @@ export function SettingsPage() {
   const [customAds, setCustomAds] = useState([])
   const [draggedIndex, setDragIndex] = useState(null)
 
-  // Cards list for select
-  const [allCards, setAllCards] = useState([])
-
   // Notification State
   const [notif, setNotif] = useState({ title: '', body: '', imageUrl: '' })
   const [sendingNotif, setSendingNotif] = useState(false)
@@ -74,10 +69,9 @@ export function SettingsPage() {
     if (!accessToken) return
     setLoading(true)
     try {
-      const [settings, ads, cardsData] = await Promise.all([
+      const [settings, ads] = await Promise.all([
         fetchAppSettings(accessToken),
         fetchCustomAdsAdmin(accessToken),
-        fetchCards(accessToken)
       ])
       if (settings) {
         setAppSettings((prev) => ({
@@ -88,7 +82,6 @@ export function SettingsPage() {
         }))
       }
       if (ads) setCustomAds(ads)
-      if (cardsData && cardsData.items) setAllCards(cardsData.items)
     } catch (err) {
       toast.error(err.message || 'Could not load settings.')
     } finally {
@@ -445,44 +438,6 @@ export function SettingsPage() {
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-xs font-mono font-bold uppercase tracking-wider text-accent">Specific Bonus Cards (Everyone Gets These)</label>
-                      <div className="flex flex-wrap gap-2 p-4 rounded-2xl border border-border bg-surface-muted/10">
-                        {allCards.map(card => {
-                          const isSelected = (appSettings.welcomeReward?.bonusCardIds || []).some(
-                            (id) => String(id) === String(card._id)
-                          )
-                          return (
-                            <button
-                              key={card._id}
-                              type="button"
-                              onClick={() => {
-                                const current = appSettings.welcomeReward?.bonusCardIds || []
-                                const next = isSelected 
-                                  ? current.filter(id => String(id) !== String(card._id))
-                                  : [...current, card._id]
-                                setAppSettings({
-                                  ...appSettings,
-                                  welcomeReward: { ...appSettings.welcomeReward, bonusCardIds: next }
-                                })
-                              }}
-                              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[11px] font-bold transition-all ${
-                                isSelected 
-                                  ? 'bg-accent text-accent-foreground border-accent shadow-glow' 
-                                  : 'bg-surface border-border text-foreground-muted hover:border-accent/30'
-                              }`}
-                            >
-                              <div className="h-4 w-4 rounded-md overflow-hidden bg-surface-muted">
-                                <img src={card.image?.startsWith('/') ? `${API_BASE_URL}${card.image}` : card.image} alt="" className="h-full w-full object-cover" />
-                              </div>
-                              {card.name}
-                            </button>
-                          )
-                        })}
-                        {allCards.length === 0 && <p className="text-xs text-foreground-subtle italic">No cards available.</p>}
-                      </div>
-                    </div>
-
                     <div className="rounded-2xl border border-border bg-surface-muted/20 p-6">
                       <h4 className="text-small font-bold uppercase tracking-wider mb-4 flex items-center gap-2">
                         <Star className="h-4 w-4 text-accent" />
@@ -552,7 +507,7 @@ export function SettingsPage() {
                 <div>
                   <h3 className="font-display text-2xl font-bold">Reward pack API</h3>
                   <p className="mt-1 text-body text-foreground-muted">
-                    Same rules as welcome (base + bonus random draws, fixed bonus cards, star odds). Users call{' '}
+                    Same rules as welcome (base + bonus random draws, star odds). Users call{' '}
                     <code className="rounded bg-surface-muted px-1.5 py-0.5 font-mono text-[11px]">POST /api/inventory/claim-reward-pack</code>
                     . Only cards they do not already own are added; each item returns{' '}
                     <code className="rounded bg-surface-muted px-1.5 py-0.5 font-mono text-[11px]">status: &quot;new&quot;</code> or{' '}
@@ -593,52 +548,6 @@ export function SettingsPage() {
                         }}
                         hint="Extra random draws"
                       />
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-xs font-mono font-bold uppercase tracking-wider text-accent">
-                        Specific bonus cards (rolled first; only added if not owned)
-                      </label>
-                      <div className="flex flex-wrap gap-2 p-4 rounded-2xl border border-border bg-surface-muted/10">
-                        {allCards.map((card) => {
-                          const isSelected = (appSettings.rewardPack?.bonusCardIds || []).some(
-                            (id) => String(id) === String(card._id)
-                          )
-                          return (
-                            <button
-                              key={`rp-${card._id}`}
-                              type="button"
-                              onClick={() => {
-                                const current = appSettings.rewardPack?.bonusCardIds || []
-                                const next = isSelected
-                                  ? current.filter((id) => String(id) !== String(card._id))
-                                  : [...current, card._id]
-                                setAppSettings({
-                                  ...appSettings,
-                                  rewardPack: { ...appSettings.rewardPack, bonusCardIds: next },
-                                })
-                              }}
-                              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[11px] font-bold transition-all ${
-                                isSelected
-                                  ? 'bg-accent text-accent-foreground border-accent shadow-glow'
-                                  : 'bg-surface border-border text-foreground-muted hover:border-accent/30'
-                              }`}
-                            >
-                              <div className="h-4 w-4 rounded-md overflow-hidden bg-surface-muted">
-                                <img
-                                  src={card.image?.startsWith('/') ? `${API_BASE_URL}${card.image}` : card.image}
-                                  alt=""
-                                  className="h-full w-full object-cover"
-                                />
-                              </div>
-                              {card.name}
-                            </button>
-                          )
-                        })}
-                        {allCards.length === 0 && (
-                          <p className="text-xs text-foreground-subtle italic">No cards available.</p>
-                        )}
-                      </div>
                     </div>
 
                     <div className="rounded-2xl border border-border bg-surface-muted/20 p-6">
