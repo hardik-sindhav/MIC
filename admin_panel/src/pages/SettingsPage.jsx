@@ -55,8 +55,10 @@ export function SettingsPage() {
         star5: 5,
       }
     },
-    /** Max rewarded-ad pack claims per user per UTC day; 0 = unlimited */
+    /** Max rewarded-ad pack claims per user per rolling window; 0 = unlimited */
     rewardAdMaxPerDay: 10,
+    /** Window length in minutes (10–1440). Count resets after this from first claim in window. */
+    rewardAdWindowMinutes: 1440,
   })
 
   // Custom Ads State
@@ -85,6 +87,10 @@ export function SettingsPage() {
             settings.rewardAdMaxPerDay !== undefined && settings.rewardAdMaxPerDay !== null
               ? settings.rewardAdMaxPerDay
               : prev.rewardAdMaxPerDay,
+          rewardAdWindowMinutes:
+            settings.rewardAdWindowMinutes !== undefined && settings.rewardAdWindowMinutes !== null
+              ? settings.rewardAdWindowMinutes
+              : prev.rewardAdWindowMinutes,
         }))
       }
       if (ads) setCustomAds(ads)
@@ -121,6 +127,11 @@ export function SettingsPage() {
         const r = Number(appSettings.rewardAdMaxPerDay)
         const n = Number.isFinite(r) ? r : 10
         return Math.max(0, Math.min(500, Math.floor(n)))
+      })(),
+      rewardAdWindowMinutes: (() => {
+        const r = Number(appSettings.rewardAdWindowMinutes)
+        const n = Number.isFinite(r) ? r : 1440
+        return Math.max(10, Math.min(1440, Math.floor(n)))
       })(),
     }
 
@@ -550,27 +561,45 @@ export function SettingsPage() {
                     <h3 className="font-display text-2xl font-bold">Reward pack</h3>
                     <p className="mt-1 text-body text-foreground-muted">
                       Same idea as the welcome package: base and bonus random draws using the star probabilities below. After each
-                      rewarded ad, the player gets one pack open; opens are capped per UTC calendar day (resets at midnight UTC).
-                      Cards they already own are not added again to their collection.
+                      rewarded ad, the player gets one pack open. You set how many opens per rolling time window (10 minutes up to 24
+                      hours); when the window ends, their count resets. Cards they already own are not added again to their collection.
                     </p>
                   </div>
 
                   <div className="grid gap-8 lg:grid-cols-2">
                     <div className="space-y-6">
-                      <Input
-                        label="Max reward ads per day (per user)"
-                        type="number"
-                        min="0"
-                        max="500"
-                        value={appSettings.rewardAdMaxPerDay}
-                        onChange={(e) => {
-                          const raw = e.target.value
-                          const val =
-                            raw === '' ? '' : Math.max(0, Math.min(500, parseInt(raw, 10) || 0))
-                          setAppSettings({ ...appSettings, rewardAdMaxPerDay: val })
-                        }}
-                        hint="0 = unlimited. Limit resets every UTC day."
-                      />
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <Input
+                          label="Max opens per window (per user)"
+                          type="number"
+                          min="0"
+                          max="500"
+                          value={appSettings.rewardAdMaxPerDay}
+                          onChange={(e) => {
+                            const raw = e.target.value
+                            const val =
+                              raw === '' ? '' : Math.max(0, Math.min(500, parseInt(raw, 10) || 0))
+                            setAppSettings({ ...appSettings, rewardAdMaxPerDay: val })
+                          }}
+                          hint="0 = unlimited."
+                        />
+                        <Input
+                          label="Window length (minutes)"
+                          type="number"
+                          min="10"
+                          max="1440"
+                          value={appSettings.rewardAdWindowMinutes}
+                          onChange={(e) => {
+                            const raw = e.target.value
+                            const val =
+                              raw === ''
+                                ? ''
+                                : Math.max(10, Math.min(1440, parseInt(raw, 10) || 10))
+                            setAppSettings({ ...appSettings, rewardAdWindowMinutes: val })
+                          }}
+                          hint="10 min … 1440 (24 h). Resets after this from window start."
+                        />
+                      </div>
                       <div className="grid gap-4 sm:grid-cols-2">
                         <Input
                           label="Base Cards"
@@ -668,10 +697,10 @@ export function SettingsPage() {
                             {(appSettings.rewardPack?.totalCards || 0) + (appSettings.rewardPack?.bonusCards || 0)}.
                           </li>
                           <li>
-                            Daily cap:{' '}
+                            Limit:{' '}
                             {appSettings.rewardAdMaxPerDay === 0 || appSettings.rewardAdMaxPerDay === ''
-                              ? 'unlimited'
-                              : `${appSettings.rewardAdMaxPerDay} rewarded-ad pack claims per user each UTC calendar day (resets at midnight UTC).`}
+                              ? 'unlimited opens'
+                              : `${appSettings.rewardAdMaxPerDay} opens per ${appSettings.rewardAdWindowMinutes || 1440} minutes (rolling window from first open in that period).`}
                           </li>
                           <li>New cards are added to the player&apos;s collection; rolls for cards they already have do not increase quantity.</li>
                           <li>The app can still show every card in the pack animation so players see the full reveal.</li>

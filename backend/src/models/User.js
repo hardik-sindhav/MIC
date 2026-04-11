@@ -30,9 +30,11 @@ const userSchema = new mongoose.Schema(
     blockReason: { type: String, trim: true, default: '' },
     /** Whether the user has already claimed their welcome cards */
     hasClaimedWelcome: { type: Boolean, default: false },
-    /** UTC calendar date (YYYY-MM-DD) for rewardAdClaimCount */
+    /** @deprecated Rolling window uses rewardAdWindowStart */
     rewardAdClaimDay: { type: String, trim: true, default: '' },
-    /** How many reward-ad pack claims used on rewardAdClaimDay */
+    /** Start of current reward-ad limit window (rolling) */
+    rewardAdWindowStart: { type: Date, default: null },
+    /** Claims used in the current window (reset when window elapses) */
     rewardAdClaimCount: { type: Number, default: 0, min: 0 },
     /** User's card collection */
     inventory: {

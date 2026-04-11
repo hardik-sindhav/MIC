@@ -37,10 +37,14 @@ const appSettingsSchema = new mongoose.Schema(
       }
     },
     /**
-     * Max rewarded-ad pack claims per user per UTC calendar day (claim-reward-pack).
-     * 0 = no daily cap (unlimited).
+     * Max rewarded-ad pack claims per user per rolling window (claim-reward-pack).
+     * 0 = unlimited.
      */
     rewardAdMaxPerDay: { type: Number, default: 10, min: 0, max: 500 },
+    /**
+     * Length of that window in minutes (admin: 10–1440 = 10 min to 24 h). After it ends, count resets.
+     */
+    rewardAdWindowMinutes: { type: Number, default: 1440, min: 10, max: 1440 },
   },
   { timestamps: true },
 )

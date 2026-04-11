@@ -18,7 +18,7 @@ export async function postClaimWelcome(req, res, next) {
 }
 
 /**
- * After a rewarded ad: grants a pack. Capped by AppSettings.rewardAdMaxPerDay (UTC day); 0 = unlimited.
+ * After a rewarded ad: grants a pack. Capped by rewardAdMaxPerDay per rolling rewardAdWindowMinutes; 0 = unlimited.
  * Skips global /api rate limit (see rateLimiters).
  */
 export async function postClaimRewardPack(req, res, next) {
@@ -36,18 +36,23 @@ export async function postClaimRewardPack(req, res, next) {
         error: e.message,
         code: e.code,
         maxPerDay: e.maxPerDay,
+        maxPerWindow: e.maxPerWindow,
         usedToday: e.usedToday,
-        dayUtc: e.dayUtc,
+        claimsUsedInWindow: e.claimsUsedInWindow,
+        windowMinutes: e.windowMinutes,
+        nextAvailableAt: e.nextAvailableAt,
+        secondsUntilNextClaim: e.secondsUntilNextClaim,
       })
     }
     next(e)
   }
 }
 
-export async function getRewardAdStatus(req, res, next) {
+/** Same payload as GET /reward-ad-limit (rolling window + next slot). */
+export async function getRewardAdLimit(req, res, next) {
   try {
-    const status = await inventoryService.getRewardAdStatusForUser(req.auth.sub)
-    return res.status(200).json(status)
+    const payload = await inventoryService.getRewardAdLimitForUser(req.auth.sub)
+    return res.status(200).json(payload)
   } catch (e) {
     next(e)
   }

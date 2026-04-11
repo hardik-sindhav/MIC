@@ -34,6 +34,7 @@ export async function getAppSettings() {
         }
       },
       rewardAdMaxPerDay: 10,
+      rewardAdWindowMinutes: 1440,
     }
   }
   return doc
@@ -57,6 +58,9 @@ export async function updateAppSettings(payload) {
     }
     if (payload.rewardAdMaxPerDay !== undefined && payload.rewardAdMaxPerDay !== null) {
       doc.rewardAdMaxPerDay = payload.rewardAdMaxPerDay
+    }
+    if (payload.rewardAdWindowMinutes !== undefined && payload.rewardAdWindowMinutes !== null) {
+      doc.rewardAdWindowMinutes = payload.rewardAdWindowMinutes
     }
     await doc.save()
   } else {

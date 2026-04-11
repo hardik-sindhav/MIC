@@ -5,11 +5,6 @@ import { activeCardFilter } from './cards.service.js'
 
 const DEFAULT_STAR_CHANCES = { star1: 40, star2: 30, star3: 15, star4: 10, star5: 5 }
 
-/** UTC calendar day key YYYY-MM-DD (same moment worldwide for limit reset). */
-export function getRewardAdUtcDay() {
-  return new Date().toISOString().slice(0, 10)
-}
-
 function getRewardAdMaxPerDay(settings) {
   const v = settings?.rewardAdMaxPerDay
   if (v === undefined || v === null) return 10
@@ -18,34 +13,126 @@ function getRewardAdMaxPerDay(settings) {
   return Math.max(0, Math.min(500, Math.floor(n)))
 }
 
-function normalizeUserRewardAdDay(user, today) {
-  if (user.rewardAdClaimDay !== today) {
-    user.rewardAdClaimDay = today
+function getRewardAdWindowMinutes(settings) {
+  const v = settings?.rewardAdWindowMinutes
+  if (v === undefined || v === null) return 1440
+  const n = Number(v)
+  if (!Number.isFinite(n)) return 1440
+  return Math.max(10, Math.min(1440, Math.floor(n)))
+}
+
+function getRewardAdWindowMs(settings) {
+  return getRewardAdWindowMinutes(settings) * 60 * 1000
+}
+
+/** Clear window if it has ended (mutates Mongoose user doc). */
+function expireRewardAdWindowIfNeeded(user, settings, now = Date.now()) {
+  const maxClaims = getRewardAdMaxPerDay(settings)
+  if (maxClaims === 0) return
+  const windowMs = getRewardAdWindowMs(settings)
+  if (!user.rewardAdWindowStart) return
+  const start = new Date(user.rewardAdWindowStart).getTime()
+  if (Number.isNaN(start)) {
+    user.rewardAdWindowStart = null
+    user.rewardAdClaimCount = 0
+    return
+  }
+  if (now >= start + windowMs) {
+    user.rewardAdWindowStart = null
     user.rewardAdClaimCount = 0
   }
 }
 
 function checkRewardAdAllowance(user, settings) {
-  const maxPerDay = getRewardAdMaxPerDay(settings)
-  if (maxPerDay === 0) return
-  const today = getRewardAdUtcDay()
-  normalizeUserRewardAdDay(user, today)
-  if (user.rewardAdClaimCount >= maxPerDay) {
-    const err = new Error('Daily reward ad limit reached')
+  const now = Date.now()
+  expireRewardAdWindowIfNeeded(user, settings, now)
+  const maxClaims = getRewardAdMaxPerDay(settings)
+  if (maxClaims === 0) return
+  const windowMs = getRewardAdWindowMs(settings)
+  const windowMinutes = getRewardAdWindowMinutes(settings)
+  if (user.rewardAdWindowStart && user.rewardAdClaimCount >= maxClaims) {
+    const start = new Date(user.rewardAdWindowStart).getTime()
+    const nextMs = start + windowMs
+    const err = new Error('Reward ad limit reached for this period')
     err.code = 'REWARD_AD_DAILY_LIMIT'
-    err.maxPerDay = maxPerDay
+    err.maxPerDay = maxClaims
+    err.maxPerWindow = maxClaims
     err.usedToday = user.rewardAdClaimCount
-    err.dayUtc = today
+    err.claimsUsedInWindow = user.rewardAdClaimCount
+    err.windowMinutes = windowMinutes
+    err.nextAvailableAt = new Date(nextMs).toISOString()
+    err.secondsUntilNextClaim = Math.max(0, Math.ceil((nextMs - now) / 1000))
     throw err
   }
 }
 
 function recordRewardAdClaim(user, settings) {
-  const maxPerDay = getRewardAdMaxPerDay(settings)
-  if (maxPerDay === 0) return
-  const today = getRewardAdUtcDay()
-  normalizeUserRewardAdDay(user, today)
-  user.rewardAdClaimCount += 1
+  const now = Date.now()
+  const maxClaims = getRewardAdMaxPerDay(settings)
+  if (maxClaims === 0) return
+  expireRewardAdWindowIfNeeded(user, settings, now)
+  if (!user.rewardAdWindowStart) {
+    user.rewardAdWindowStart = new Date(now)
+  }
+  user.rewardAdClaimCount = (user.rewardAdClaimCount || 0) + 1
+}
+
+/**
+ * Read-only snapshot for API (lean user or doc). Applies virtual window expiry without saving.
+ */
+export function computeRewardAdLimitSnapshot(user, settings, now = Date.now()) {
+  const maxPerWindow = getRewardAdMaxPerDay(settings)
+  const windowMinutes = getRewardAdWindowMinutes(settings)
+  if (maxPerWindow === 0) {
+    return {
+      unlimited: true,
+      maxPerWindow: 0,
+      maxPerDay: 0,
+      windowMinutes,
+      claimsUsedInWindow: 0,
+      usedToday: 0,
+      remaining: null,
+      canClaim: true,
+      nextAvailableAt: null,
+      secondsUntilNextClaim: null,
+    }
+  }
+  const windowMs = windowMinutes * 60 * 1000
+
+  let windowStartMs = null
+  if (user.rewardAdWindowStart) {
+    const t = new Date(user.rewardAdWindowStart).getTime()
+    if (!Number.isNaN(t)) windowStartMs = t
+  }
+  let count = Math.max(0, Number(user.rewardAdClaimCount || 0))
+
+  if (windowStartMs != null && now >= windowStartMs + windowMs) {
+    windowStartMs = null
+    count = 0
+  }
+
+  const claimsUsedInWindow = windowStartMs == null ? 0 : count
+  const remaining = Math.max(0, maxPerWindow - claimsUsedInWindow)
+  const atLimit = windowStartMs != null && count >= maxPerWindow
+  const nextAvailableAt =
+    atLimit && windowStartMs != null ? new Date(windowStartMs + windowMs).toISOString() : null
+  const secondsUntilNextClaim =
+    nextAvailableAt != null
+      ? Math.max(0, Math.ceil((new Date(nextAvailableAt).getTime() - now) / 1000))
+      : null
+
+  return {
+    unlimited: false,
+    maxPerWindow,
+    maxPerDay: maxPerWindow,
+    windowMinutes,
+    claimsUsedInWindow,
+    usedToday: claimsUsedInWindow,
+    remaining,
+    canClaim: !atLimit,
+    nextAvailableAt,
+    secondsUntilNextClaim,
+  }
 }
 
 function normalizeRewardConfig(raw) {
@@ -196,7 +283,7 @@ export async function claimWelcomeReward(userId) {
 
 /**
  * Reward pack (after rewarded ad): same draw rules as rewardPack settings; only adds new cards.
- * Each card includes status "new" or "already_owned". Limited by AppSettings.rewardAdMaxPerDay (0 = unlimited).
+ * Each card includes status "new" or "already_owned". Limited by rewardAdMaxPerDay per rolling window (rewardAdWindowMinutes; 0 = unlimited).
  */
 export async function claimRewardPack(userId) {
   const user = await User.findById(userId)
@@ -259,22 +346,12 @@ export async function claimRewardPack(userId) {
   return { newCount, cards }
 }
 
-/** For GET /inventory/reward-ad-status — does not mutate the user document. */
-export async function getRewardAdStatusForUser(userId) {
-  const user = await User.findById(userId).select('rewardAdClaimDay rewardAdClaimCount').lean()
+/** For GET /inventory/reward-ad-limit and reward-ad-status — read-only, no DB write. */
+export async function getRewardAdLimitForUser(userId) {
+  const user = await User.findById(userId)
+    .select('rewardAdWindowStart rewardAdClaimCount')
+    .lean()
   if (!user) throw new Error('User not found')
   const settings = await getAppSettings()
-  const maxPerDay = getRewardAdMaxPerDay(settings)
-  const today = getRewardAdUtcDay()
-  const usedToday =
-    user.rewardAdClaimDay === today ? Math.max(0, Number(user.rewardAdClaimCount || 0)) : 0
-  const unlimited = maxPerDay === 0
-  return {
-    maxPerDay,
-    usedToday,
-    remaining: unlimited ? null : Math.max(0, maxPerDay - usedToday),
-    unlimited,
-    dayUtc: today,
-    canClaim: unlimited || usedToday < maxPerDay,
-  }
+  return computeRewardAdLimitSnapshot(user, settings)
 }

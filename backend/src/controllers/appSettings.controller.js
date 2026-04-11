@@ -30,8 +30,10 @@ const appSettingsSchema = z.object({
       star5: z.number().min(0).max(100).default(5),
     })
   }).optional(),
-  /** 0 = unlimited reward-ad claims per day */
+  /** 0 = unlimited reward-ad claims per rolling window */
   rewardAdMaxPerDay: z.number().int().min(0).max(500).default(10),
+  /** 10 min … 24 h — length of window before claim count resets */
+  rewardAdWindowMinutes: z.number().int().min(10).max(1440).default(1440),
 })
 
 /** Public fetch for mobile apps to check for updates and global notes */
