@@ -15,7 +15,7 @@ function signUserToken(user) {
   }
   return jwt.sign(payload, env.JWT_SECRET, {
     algorithm: 'HS256',
-    expiresIn: '30d', // Mobile sessions usually last longer
+    // expiresIn removed to make token never expire
     issuer: 'mic-api',
     audience: 'mic-app',
   })

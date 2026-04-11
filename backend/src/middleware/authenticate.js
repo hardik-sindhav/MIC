@@ -16,16 +16,19 @@ export function requireAuth(req, res, next) {
 
   try {
     const payload = verifyAccessToken(token)
-    if (payload.typ !== 'access') {
+    // Accept both admin-access ('access') and user-access ('user-access') types
+    if (payload.typ !== 'access' && payload.typ !== 'user-access') {
       return res.status(401).json({ error: 'Unauthorized', code: 'INVALID_TOKEN_TYPE' })
     }
     req.auth = {
       sub: payload.sub,
       email: payload.email,
-      role: payload.role,
+      role: payload.role || (payload.typ === 'user-access' ? 'user' : 'admin'),
     }
     return next()
-  } catch {
-    return res.status(401).json({ error: 'Unauthorized', code: 'TOKEN_EXPIRED_OR_INVALID' })
+  } catch (err) {
+    // Distinguish between expired and other invalid reasons for debugging if needed
+    const code = err.name === 'TokenExpiredError' ? 'TOKEN_EXPIRED' : 'TOKEN_INVALID'
+    return res.status(401).json({ error: 'Unauthorized', code: 'TOKEN_EXPIRED_OR_INVALID', details: code })
   }
 }

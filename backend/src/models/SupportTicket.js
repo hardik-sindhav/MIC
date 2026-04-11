@@ -2,7 +2,7 @@ import mongoose from 'mongoose'
 
 const replySchema = new mongoose.Schema(
   {
-    senderId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    senderId: { type: String, required: true },
     senderType: { type: String, enum: ['user', 'admin'], required: true },
     message: { type: String, trim: true, default: '' },
     images: { type: [String], default: [] },
@@ -14,6 +14,7 @@ const ticketSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     title: { type: String, trim: true, required: true },
+    ticketId: { type: String, unique: true, index: true },
     description: { type: String, trim: true, required: true },
     images: { type: [String], default: [] },
     status: {

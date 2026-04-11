@@ -304,6 +304,7 @@ export function verifyAccessToken(token) {
   return jwt.verify(token, env.JWT_SECRET, {
     algorithms: ['HS256'],
     issuer: 'mic-api',
-    audience: 'mic-admin',
+    // Allow either admin or app audience
+    audience: ['mic-admin', 'mic-app'],
   })
 }

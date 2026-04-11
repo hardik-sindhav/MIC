@@ -225,7 +225,7 @@ export function SupportPage() {
                           <StatusIcon className="h-3 w-3" />
                           {STATUS_CONFIG[ticket.status].label}
                         </span>
-                        <span className="text-[10px] text-foreground-subtle">{formatDate(ticket.createdAt)}</span>
+                        <span className="text-[10px] text-foreground-subtle font-mono font-bold">{ticket.ticketId || ticket._id.slice(-8).toUpperCase()}</span>
                       </div>
                       <p className={`text-small font-bold text-foreground truncate mb-1 ${selectedTicketId === ticket._id ? 'text-accent' : ''}`}>{ticket.title}</p>
                       <div className="flex items-center gap-2">
@@ -268,7 +268,7 @@ export function SupportPage() {
                       <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${STATUS_CONFIG[ticketDetail.status].bg} ${STATUS_CONFIG[ticketDetail.status].color}`}>
                         {STATUS_CONFIG[ticketDetail.status].label}
                       </span>
-                      <span className="text-xs text-foreground-subtle">ID: {ticketDetail._id.slice(-8).toUpperCase()}</span>
+                      <span className="text-xs text-foreground-subtle font-mono font-bold tracking-wider">{ticketDetail.ticketId || ticketDetail._id.slice(-8).toUpperCase()}</span>
                     </div>
                     <h2 className="text-2xl font-display font-bold text-foreground mb-1 leading-tight">{ticketDetail.title}</h2>
                     <div className="flex items-center gap-4 text-small">
@@ -375,7 +375,7 @@ export function SupportPage() {
                         {isAdmin ? <ShieldCheck className="h-5 w-5 text-foreground-muted" /> : <User className="h-5 w-5 text-accent" />}
                       </div>
                       <div className={`flex-1 space-y-2 max-w-[85%] ${isAdmin ? 'text-right' : ''}`}>
-                        <div className={`inline-block text-left p-4 rounded-2xl shadow-sm border ${isAdmin ? 'bg-foreground text-foreground-inverse border-transparent rounded-tr-none' : 'bg-surface border-border rounded-tl-none dark:bg-surface-elevated'}`}>
+                        <div className={`inline-block text-left p-4 rounded-2xl shadow-sm border ${isAdmin ? 'bg-accent text-accent-foreground border-transparent rounded-tr-none shadow-glow' : 'bg-surface border-border rounded-tl-none dark:bg-surface-elevated'}`}>
                           <p className="text-small leading-relaxed whitespace-pre-wrap">{reply.message}</p>
                           
                           {reply.images && reply.images.length > 0 && (
